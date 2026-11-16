@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:sch="http://soaproject.com/inventory" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tns="http://soaproject.com/inventory" targetNamespace="http://soaproject.com/inventory">
+  <wsdl:types>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" targetNamespace="http://soaproject.com/inventory">
+
+    <!-- ============ getSparePart ============ -->
+    <xs:element name="getSparePartRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="partId" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="getSparePartResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="partId" type="xs:string"/>
+                <xs:element name="sku" type="xs:string"/>
+                <xs:element name="name" type="xs:string"/>
+                <xs:element minOccurs="0" name="description" type="xs:string"/>
+                <xs:element name="unit" type="xs:string"/>
+                <xs:element name="availableQuantity" type="xs:int"/>
+                <xs:element name="minimumStockLevel" type="xs:int"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ============ checkStock ============ -->
+    <xs:element name="checkStockRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="partId" type="xs:string"/>
+                <xs:element name="quantity" type="xs:int"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="checkStockResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="available" type="xs:boolean"/>
+                <xs:element name="requestedQuantity" type="xs:int"/>
+                <xs:element name="availableQuantity" type="xs:int"/>
+                <xs:element name="message" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ============ reservePart ============ -->
+    <xs:element name="reservePartRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="requestId" type="xs:string"/>
+                <xs:element name="partId" type="xs:string"/>
+                <xs:element name="quantity" type="xs:int"/>
+                <xs:element name="workOrderId" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="reservePartResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="reservationId" type="xs:string"/>
+                <xs:element name="status" type="xs:string"/>
+                <xs:element name="reservedQuantity" type="xs:int"/>
+                <xs:element name="timestamp" type="xs:dateTime"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ============ releaseReservation ============ -->
+    <xs:element name="releaseReservationRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="reservationId" type="xs:string"/>
+                <xs:element minOccurs="0" name="reason" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="releaseReservationResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="reservationId" type="xs:string"/>
+                <xs:element name="status" type="xs:string"/>
+                <xs:element name="releasedQuantity" type="xs:int"/>
+                <xs:element name="message" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ============ createPurchaseOrder ============ -->
+    <xs:element name="createPurchaseOrderRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="partId" type="xs:string"/>
+                <xs:element name="quantity" type="xs:int"/>
+                <xs:element minOccurs="0" name="workOrderId" type="xs:string"/>
+                <xs:element minOccurs="0" name="reason" type="xs:string"/>
+                <xs:element minOccurs="0" name="supplierReference" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="createPurchaseOrderResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="purchaseOrderId" type="xs:string"/>
+                <xs:element name="status" type="xs:string"/>
+                <xs:element name="createdAt" type="xs:dateTime"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>
+  </wsdl:types>
+  <wsdl:message name="checkStockRequest">
+    <wsdl:part element="tns:checkStockRequest" name="checkStockRequest">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="releaseReservationResponse">
+    <wsdl:part element="tns:releaseReservationResponse" name="releaseReservationResponse">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="createPurchaseOrderResponse">
+    <wsdl:part element="tns:createPurchaseOrderResponse" name="createPurchaseOrderResponse">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="reservePartResponse">
+    <wsdl:part element="tns:reservePartResponse" name="reservePartResponse">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="releaseReservationRequest">
+    <wsdl:part element="tns:releaseReservationRequest" name="releaseReservationRequest">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="createPurchaseOrderRequest">
+    <wsdl:part element="tns:createPurchaseOrderRequest" name="createPurchaseOrderRequest">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="getSparePartRequest">
+    <wsdl:part element="tns:getSparePartRequest" name="getSparePartRequest">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="checkStockResponse">
+    <wsdl:part element="tns:checkStockResponse" name="checkStockResponse">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="getSparePartResponse">
+    <wsdl:part element="tns:getSparePartResponse" name="getSparePartResponse">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="reservePartRequest">
+    <wsdl:part element="tns:reservePartRequest" name="reservePartRequest">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:portType name="InventoryPort">
+    <wsdl:operation name="checkStock">
+      <wsdl:input message="tns:checkStockRequest" name="checkStockRequest">
+    </wsdl:input>
+      <wsdl:output message="tns:checkStockResponse" name="checkStockResponse">
+    </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="releaseReservation">
+      <wsdl:input message="tns:releaseReservationRequest" name="releaseReservationRequest">
+    </wsdl:input>
+      <wsdl:output message="tns:releaseReservationResponse" name="releaseReservationResponse">
+    </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="createPurchaseOrder">
+      <wsdl:input message="tns:createPurchaseOrderRequest" name="createPurchaseOrderRequest">
+    </wsdl:input>
+      <wsdl:output message="tns:createPurchaseOrderResponse" name="createPurchaseOrderResponse">
+    </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="reservePart">
+      <wsdl:input message="tns:reservePartRequest" name="reservePartRequest">
+    </wsdl:input>
+      <wsdl:output message="tns:reservePartResponse" name="reservePartResponse">
+    </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="getSparePart">
+      <wsdl:input message="tns:getSparePartRequest" name="getSparePartRequest">
+    </wsdl:input>
+      <wsdl:output message="tns:getSparePartResponse" name="getSparePartResponse">
+    </wsdl:output>
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="InventoryPortSoap11" type="tns:InventoryPort">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="checkStock">
+      <soap:operation soapAction=""/>
+      <wsdl:input name="checkStockRequest">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="checkStockResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="releaseReservation">
+      <soap:operation soapAction=""/>
+      <wsdl:input name="releaseReservationRequest">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="releaseReservationResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="createPurchaseOrder">
+      <soap:operation soapAction=""/>
+      <wsdl:input name="createPurchaseOrderRequest">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="createPurchaseOrderResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="reservePart">
+      <soap:operation soapAction=""/>
+      <wsdl:input name="reservePartRequest">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="reservePartResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="getSparePart">
+      <soap:operation soapAction=""/>
+      <wsdl:input name="getSparePartRequest">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="getSparePartResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="InventoryPortService">
+    <wsdl:port binding="tns:InventoryPortSoap11" name="InventoryPortSoap11">
+      <soap:address location="http://localhost:8082/services/inventory"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>
