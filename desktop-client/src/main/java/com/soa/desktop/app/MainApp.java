@@ -46,7 +46,9 @@ public class MainApp extends Application {
 
         CompletableFuture.runAsync(() -> {
             try {
-                rest.login("admin", "epXNCuqnIAZ5z19bmU7H2gKt");
+                String user = System.getenv().getOrDefault("ADMIN_USERNAME", "admin");
+                String pass = System.getenv().getOrDefault("ADMIN_PASSWORD", "admin");
+                rest.login(user, pass);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
