@@ -1,0 +1,39 @@
+server:
+  port: 8082
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  shutdown: graceful
+
+spring:
+  application:
+    name: inventory-soap-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:soa_project}
+    username: ${INVENTORY_DB_USER:inventory_app}
+    password: ${INVENTORY_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: inventory
+        jdbc:
+          time_zone: UTC
+  flyway:
+    schemas: inventory
+    default-schema: inventory
+    create-schemas: false
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+app:
+  inventory:
+    # Shared API key required on every SOAP POST to /services/*
+    # Generate:  openssl rand -hex 32
+    api-key: ${INVENTORY_API_KEY}

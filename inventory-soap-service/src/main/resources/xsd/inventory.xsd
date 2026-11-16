@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://soaproject.com/inventory"
+           elementFormDefault="qualified">
+
+    <!-- ============ getSparePart ============ -->
+    <xs:element name="getSparePartRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="partId" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="getSparePartResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="partId" type="xs:string"/>
+                <xs:element name="sku" type="xs:string"/>
+                <xs:element name="name" type="xs:string"/>
+                <xs:element name="description" type="xs:string" minOccurs="0"/>
+                <xs:element name="unit" type="xs:string"/>
+                <xs:element name="availableQuantity" type="xs:int"/>
+                <xs:element name="minimumStockLevel" type="xs:int"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ============ checkStock ============ -->
+    <xs:element name="checkStockRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="partId" type="xs:string"/>
+                <xs:element name="quantity" type="xs:int"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="checkStockResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="available" type="xs:boolean"/>
+                <xs:element name="requestedQuantity" type="xs:int"/>
+                <xs:element name="availableQuantity" type="xs:int"/>
+                <xs:element name="message" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ============ reservePart ============ -->
+    <xs:element name="reservePartRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="requestId" type="xs:string"/>
+                <xs:element name="partId" type="xs:string"/>
+                <xs:element name="quantity" type="xs:int"/>
+                <xs:element name="workOrderId" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="reservePartResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="reservationId" type="xs:string"/>
+                <xs:element name="status" type="xs:string"/>
+                <xs:element name="reservedQuantity" type="xs:int"/>
+                <xs:element name="timestamp" type="xs:dateTime"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ============ releaseReservation ============ -->
+    <xs:element name="releaseReservationRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="reservationId" type="xs:string"/>
+                <xs:element name="reason" type="xs:string" minOccurs="0"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="releaseReservationResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="reservationId" type="xs:string"/>
+                <xs:element name="status" type="xs:string"/>
+                <xs:element name="releasedQuantity" type="xs:int"/>
+                <xs:element name="message" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ============ createPurchaseOrder ============ -->
+    <xs:element name="createPurchaseOrderRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="partId" type="xs:string"/>
+                <xs:element name="quantity" type="xs:int"/>
+                <xs:element name="workOrderId" type="xs:string" minOccurs="0"/>
+                <xs:element name="reason" type="xs:string" minOccurs="0"/>
+                <xs:element name="supplierReference" type="xs:string" minOccurs="0"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="createPurchaseOrderResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="purchaseOrderId" type="xs:string"/>
+                <xs:element name="status" type="xs:string"/>
+                <xs:element name="createdAt" type="xs:dateTime"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

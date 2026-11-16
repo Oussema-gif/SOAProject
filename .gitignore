@@ -1,0 +1,27 @@
+# Secrets — NEVER commit
+.env
+.env.bak
+.env.*.local
+
+# Build output
+target/
+*.jar.original
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Logs and temp
+*.log
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testcontainers
+.testcontainers/

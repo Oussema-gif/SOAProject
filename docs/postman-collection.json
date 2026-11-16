@@ -1,0 +1,109 @@
+{
+  "info": { "name": "SOA Project", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081/api/v1" },
+    { "key": "soapUrl", "value": "http://localhost:8082/services/inventory" },
+    { "key": "inventoryApiKey", "value": "REPLACE_WITH_INVENTORY_API_KEY" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const body = pm.response.json();",
+                "pm.collectionVariables.set('token', body.accessToken);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/me",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Machines",
+      "item": [
+        {
+          "name": "List",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/machines?page=0&size=20",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Create",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/machines",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"machineId\": \"MACHINE-DEMO-1\",\n  \"name\": \"Demo Machine\",\n  \"location\": \"Lab\",\n  \"status\": \"RUNNING\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": [{
+        "name": "Create",
+        "request": {
+          "method": "POST",
+          "url": "{{baseUrl}}/alerts",
+          "header": [
+            { "key": "Authorization", "value": "Bearer {{token}}" },
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"machineId\": \"MACHINE-001\",\n  \"metricType\": \"TEMPERATURE\",\n  \"severity\": \"CRITICAL\",\n  \"observedValue\": 91.4,\n  \"thresholdValue\": 85.0,\n  \"message\": \"Temperature exceeded threshold\",\n  \"occurredAt\": \"2026-11-16T10:15:30Z\"\n}"
+          }
+        }
+      }]
+    },
+    {
+      "name": "SOAP",
+      "item": [{
+        "name": "checkStock",
+        "request": {
+          "method": "POST",
+          "url": "{{soapUrl}}",
+          "header": [
+            { "key": "Content-Type", "value": "text/xml" },
+            { "key": "X-Inventory-Api-Key", "value": "{{inventoryApiKey}}" }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:inv=\"http://soaproject.com/inventory\"><soapenv:Body><inv:checkStockRequest><inv:partId>PART-001</inv:partId><inv:quantity>2</inv:quantity></inv:checkStockRequest></soapenv:Body></soapenv:Envelope>"
+          }
+        }
+      }]
+    }
+  ]
+}

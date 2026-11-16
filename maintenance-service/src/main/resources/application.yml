@@ -1,0 +1,49 @@
+server:
+  port: 8081
+  address: ${SERVER_ADDRESS:127.0.0.1}   # localhost-only for the demo
+  shutdown: graceful
+
+spring:
+  application:
+    name: maintenance-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:soa_project}
+    username: ${MAINTENANCE_DB_USER:maintenance_app}
+    password: ${MAINTENANCE_DB_PASSWORD}          # no default on purpose: fail fast
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate                          # Flyway owns the schema
+    properties:
+      hibernate:
+        default_schema: maintenance
+        jdbc:
+          time_zone: UTC
+  flyway:
+    schemas: maintenance
+    default-schema: maintenance
+    create-schemas: false                         # created by the init script
+    locations: classpath:db/migration
+  jackson:
+    time-zone: UTC
+    serialization:
+      write-dates-as-timestamps: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+# Application security configuration
+app:
+  jwt:
+    # Base64-encoded secret (minimum 32 decoded bytes)
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+
+  seed:
+    admin:
+      username: ${ADMIN_USERNAME:admin}
+      password: ${ADMIN_PASSWORD}

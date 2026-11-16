@@ -1,0 +1,108 @@
+<!--
+  SOAP Inventory — request/response examples
+  Endpoint:   http://localhost:8082/services/inventory
+  Header:     X-Inventory-Api-Key: $INVENTORY_API_KEY
+  Namespace:  http://soaproject.com/inventory
+  WSDL:       http://localhost:8082/services/inventory.wsdl
+-->
+
+<!-- ============ getSparePart ============ -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:inv="http://soaproject.com/inventory">
+  <soapenv:Body>
+    <inv:getSparePartRequest><inv:partId>PART-001</inv:partId></inv:getSparePartRequest>
+  </soapenv:Body>
+</soapenv:Envelope>
+<!-- response
+<inv:getSparePartResponse>
+  <inv:partId>PART-001</inv:partId>
+  <inv:sku>SKU-BRG-001</inv:sku>
+  <inv:name>Industrial Bearing</inv:name>
+  <inv:description>Heavy-duty bearing for rotating machinery</inv:description>
+  <inv:unit>PCS</inv:unit>
+  <inv:availableQuantity>50</inv:availableQuantity>
+  <inv:minimumStockLevel>10</inv:minimumStockLevel>
+</inv:getSparePartResponse>
+-->
+
+<!-- ============ checkStock ============ -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:inv="http://soaproject.com/inventory">
+  <soapenv:Body>
+    <inv:checkStockRequest><inv:partId>PART-001</inv:partId><inv:quantity>2</inv:quantity></inv:checkStockRequest>
+  </soapenv:Body>
+</soapenv:Envelope>
+<!-- response (insufficient is NOT a fault — it's available=false)
+<inv:checkStockResponse>
+  <inv:available>true</inv:available>
+  <inv:requestedQuantity>2</inv:requestedQuantity>
+  <inv:availableQuantity>50</inv:availableQuantity>
+  <inv:message>Sufficient stock</inv:message>
+</inv:checkStockResponse>
+-->
+
+<!-- ============ reservePart ============ -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:inv="http://soaproject.com/inventory">
+  <soapenv:Body>
+    <inv:reservePartRequest>
+      <inv:requestId>REQ-0001</inv:requestId>
+      <inv:partId>PART-001</inv:partId>
+      <inv:quantity>2</inv:quantity>
+      <inv:workOrderId>48503a33-d64f-4377-8953-86cb3b8a7770</inv:workOrderId>
+    </inv:reservePartRequest>
+  </soapenv:Body>
+</soapenv:Envelope>
+<!-- response
+<inv:reservePartResponse>
+  <inv:reservationId>RES-000001</inv:reservationId>
+  <inv:status>CONFIRMED</inv:status>
+  <inv:reservedQuantity>2</inv:reservedQuantity>
+  <inv:timestamp>2026-11-16T17:07:26.512Z</inv:timestamp>
+</inv:reservePartResponse>
+-->
+
+<!-- ============ releaseReservation ============ -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:inv="http://soaproject.com/inventory">
+  <soapenv:Body>
+    <inv:releaseReservationRequest>
+      <inv:reservationId>RES-000001</inv:reservationId>
+      <inv:reason>Work order cancelled</inv:reason>
+    </inv:releaseReservationRequest>
+  </soapenv:Body>
+</soapenv:Envelope>
+<!-- response
+<inv:releaseReservationResponse>
+  <inv:reservationId>RES-000001</inv:reservationId>
+  <inv:status>RELEASED</inv:status>
+  <inv:releasedQuantity>2</inv:releasedQuantity>
+  <inv:message>Reservation released</inv:message>
+</inv:releaseReservationResponse>
+-->
+
+<!-- ============ createPurchaseOrder ============ -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:inv="http://soaproject.com/inventory">
+  <soapenv:Body>
+    <inv:createPurchaseOrderRequest>
+      <inv:partId>PART-005</inv:partId>
+      <inv:quantity>50</inv:quantity>
+      <inv:workOrderId>48503a33-d64f-4377-8953-86cb3b8a7770</inv:workOrderId>
+      <inv:reason>Restock</inv:reason>
+      <inv:supplierReference>SUP-1</inv:supplierReference>
+    </inv:createPurchaseOrderRequest>
+  </soapenv:Body>
+</soapenv:Envelope>
+<!-- response
+<inv:createPurchaseOrderResponse>
+  <inv:purchaseOrderId>PO-000001</inv:purchaseOrderId>
+  <inv:status>CREATED</inv:status>
+  <inv:createdAt>2026-11-16T17:07:26.512Z</inv:createdAt>
+</inv:createPurchaseOrderResponse>
+-->
+
+<!-- ============ SOAP fault (e.g. insufficient stock) ============ -->
+<soapenv:Fault>
+  <faultcode>soapenv:Client</faultcode>
+  <faultstring>Insufficient stock: requested 999, available 15</faultstring>
+  <detail>
+    <inv:code>INSUFFICIENT_STOCK</inv:code>
+    <inv:message>Insufficient stock: requested 999, available 15</inv:message>
+  </detail>
+</soapenv:Fault>
