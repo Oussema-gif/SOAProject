@@ -69,7 +69,9 @@ mvn -f frontend/pom.xml -pl desktop-client -am clean verify
 KT_DEMO=true mvn -f frontend/pom.xml -pl desktop-client clean org.openjfx:javafx-maven-plugin:0.0.8:run
 ```
 
-Demo mode is available with `--demo` or `KT_DEMO=true`. A manual smoke pass
+Demo mode is available with `--demo` or `KT_DEMO=true`. The JavaFX Maven
+launcher forwards `KT_DEMO` as the `kt.demo` JVM property so the documented
+environment-variable launch works in its child process. A manual smoke pass
 should check login rejection and success, shell navigation, live/demo
 telemetry, alert acknowledgement, work-order transitions, SOAP stock and
 reservation feedback, topology pulses, and reduce-motion behavior.

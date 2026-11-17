@@ -83,8 +83,7 @@ public class MainApp extends Application {
     public void start(Stage stage) {
         loadFonts();
         this.stage = stage;
-        demo = getParameters().getRaw().contains("--demo")
-                || "true".equalsIgnoreCase(System.getenv("KT_DEMO"));
+        demo = demoEnabled(getParameters().getRaw(), System.getProperty("kt.demo"), System.getenv("KT_DEMO"));
         rest = new MaintenanceRestClient("http://localhost:8081/api/v1");
         stage.setTitle("Kinetic Telemetry · Pit Wall");
         stage.setMinWidth(1280);
@@ -180,6 +179,12 @@ public class MainApp extends Application {
             }
         }
         switchWorkspace("dashboard");
+    }
+
+    static boolean demoEnabled(List<String> arguments, String property, String environment) {
+        return arguments.contains("--demo")
+                || "true".equalsIgnoreCase(property)
+                || "true".equalsIgnoreCase(environment);
     }
 
     private Scene createScene(Parent root, double width, double height) {
