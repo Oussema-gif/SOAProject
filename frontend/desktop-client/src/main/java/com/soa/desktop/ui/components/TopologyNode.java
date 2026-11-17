@@ -7,6 +7,8 @@ import javafx.scene.layout.VBox;
 
 public final class TopologyNode extends VBox {
 
+    private final StatusChip health = new StatusChip("NOT CHECKED", "offline");
+
     public TopologyNode(String index, String title, String protocol, String detail) {
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(7);
@@ -20,6 +22,12 @@ public final class TopologyNode extends VBox {
         protocolLabel.getStyleClass().addAll("topology-protocol", "protocol-" + protocol.toLowerCase());
         Label detailLabel = new Label(detail);
         detailLabel.getStyleClass().add("topology-detail");
-        getChildren().addAll(indexLabel, titleLabel, protocolLabel, detailLabel);
+        health.getStyleClass().add("topology-health");
+        getChildren().addAll(indexLabel, titleLabel, protocolLabel, detailLabel, health);
+    }
+
+    public void setHealth(String state, String detail) {
+        health.setText(detail);
+        health.setState(state);
     }
 }

@@ -11,6 +11,9 @@ public class ApiKeyHandler implements SOAPHandler<SOAPMessageContext> {
     private final String apiKey;
 
     public ApiKeyHandler(String apiKey) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalArgumentException("Inventory API key must be configured");
+        }
         this.apiKey = apiKey;
     }
 
@@ -22,17 +25,12 @@ public class ApiKeyHandler implements SOAPHandler<SOAPMessageContext> {
     public boolean handleMessage(SOAPMessageContext context) {
         Boolean outbound = (Boolean) context.get(MessageContext.MESSAGE_OUTBOUND_PROPERTY);
         if (outbound != null && outbound) {
-            try {
-                Map<String, List<String>> requestHeaders =
-                        (Map<String, List<String>>) context.get(MessageContext.HTTP_REQUEST_HEADERS);
-                if (requestHeaders == null) {
-                    requestHeaders = new HashMap<>();
-                    context.put(MessageContext.HTTP_REQUEST_HEADERS, requestHeaders);
-                }
-                requestHeaders.put("X-Inventory-Api-Key", Collections.singletonList(apiKey));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            Map<String, List<String>> existingHeaders =
+                    (Map<String, List<String>>) context.get(MessageContext.HTTP_REQUEST_HEADERS);
+            Map<String, List<String>> requestHeaders = existingHeaders == null
+                    ? new HashMap<>() : new HashMap<>(existingHeaders);
+            requestHeaders.put("X-Inventory-Api-Key", Collections.singletonList(apiKey));
+            context.put(MessageContext.HTTP_REQUEST_HEADERS, requestHeaders);
         }
         return true;
     }

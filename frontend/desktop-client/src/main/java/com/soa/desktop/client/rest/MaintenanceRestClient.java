@@ -8,12 +8,15 @@ import com.soa.desktop.util.ActivityLogger;
 import com.soa.desktop.ui.topology.TrafficEventBus;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -56,19 +59,23 @@ public class MaintenanceRestClient implements AutoCloseable {
     public LoginResponse login(String username, String password) {
         try {
             String body = mapper.writeValueAsString(new LoginRequest(username, password));
+            String requestId = UUID.randomUUID().toString();
+            long startedAt = System.nanoTime();
             HttpRequest req = HttpRequest.newBuilder(URI.create(baseUrl + "/auth/login"))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
 
-            ActivityLogger.log("REST", "POST /auth/login", "PENDING", "Authenticating...");
+            ActivityLogger.log("REST", "POST /auth/login", "PENDING", "Authenticating...",
+                    requestId, null, null);
             TrafficEventBus.publish("REST", "REQUEST", "PENDING");
 
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200) {
                 TrafficEventBus.publish("REST", "RESPONSE", "FAILED");
-                ActivityLogger.log("REST", "POST /auth/login", "FAILED", "HTTP " + resp.statusCode());
+                ActivityLogger.log("REST", "POST /auth/login", "FAILED", "HTTP " + resp.statusCode(),
+                        requestId, resp.statusCode(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt));
                 throw parseError(resp, "Login failed");
             }
             TrafficEventBus.publish("REST", "RESPONSE", "SUCCESS");
@@ -77,7 +84,8 @@ public class MaintenanceRestClient implements AutoCloseable {
             this.tokenExpiresAt = Instant.now().plusSeconds(lr.expiresInSeconds());
             scheduleRefresh(username, password, lr.expiresInSeconds());
 
-            ActivityLogger.log("REST", "POST /auth/login", "SUCCESS", "Logged in as " + username);
+            ActivityLogger.log("REST", "POST /auth/login", "SUCCESS", "Logged in as " + username,
+                    requestId, resp.statusCode(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt));
             return lr;
         } catch (ServiceError e) {
             throw e;
@@ -100,6 +108,32 @@ public class MaintenanceRestClient implements AutoCloseable {
         return accessToken != null && Instant.now().isBefore(tokenExpiresAt);
     }
 
+    public CompletableFuture<Boolean> checkHealth() {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl.replaceFirst("/api/v1$", "")
+                        + "/actuator/health"))
+                .timeout(REQUEST_TIMEOUT)
+                .header("Accept", "application/json")
+                .GET()
+                .build();
+        String requestId = UUID.randomUUID().toString();
+        long startedAt = System.nanoTime();
+        return http.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApply(response -> {
+            long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+            boolean healthy = false;
+            if (response.statusCode() == 200) {
+                try {
+                    healthy = "UP".equalsIgnoreCase(mapper.readTree(response.body()).path("status").asText());
+                } catch (Exception exception) {
+                    throw new ServiceError(0, "PARSE", "Malformed /actuator/health response", response.body());
+                }
+            }
+            ActivityLogger.log("REST", "GET /actuator/health", healthy ? "SUCCESS" : "FAILED",
+                    "HTTP " + response.statusCode() + " · " + elapsedMillis + " ms",
+                    requestId, response.statusCode(), elapsedMillis);
+            return healthy;
+        });
+    }
+
     // ---------------------------------------------------------------
     // Machines, Alerts, Work Orders
     // ---------------------------------------------------------------
@@ -114,17 +148,56 @@ public class MaintenanceRestClient implements AutoCloseable {
         });
     }
 
+    public CompletableFuture<PageResponse<MachineDto>> getMachinePage(int page, int size, String status) {
+        return getMachinePage(page, size, status, null);
+    }
+
+    public CompletableFuture<PageResponse<MachineDto>> getMachinePage(int page, int size,
+                                                                       String status, String query) {
+        validatePage(page, size);
+        String path = "/machines?page=" + page + "&size=" + size
+                + (status == null ? "" : "&status=" + encodeQuery(status))
+                + (query == null || query.isBlank() ? "" : "&q=" + encodeQuery(query));
+        return sendAsync("GET", path, null).thenApply(body -> parsePage(body, MachineDto.class, "/machines"));
+    }
+
     public CompletableFuture<AlertDto> createAlert(CreateAlertRequest req) {
         return postJsonAsync("/alerts", req, AlertDto.class);
     }
 
     public CompletableFuture<List<AlertDto>> getActiveAlerts() {
-        return sendAsync("GET", "/alerts?status=ACTIVE", null).thenApply(body -> {
+        return getAlerts("/alerts?status=ACTIVE");
+    }
+
+    public CompletableFuture<List<AlertDto>> getAlerts() {
+        return getAlerts("/alerts");
+    }
+
+    public CompletableFuture<PageResponse<AlertDto>> getAlertPage(int page, int size) {
+        return getAlertPage(page, size, null);
+    }
+
+    public CompletableFuture<PageResponse<AlertDto>> getAlertPage(int page, int size, String status) {
+        validatePage(page, size);
+        String path = "/alerts?page=" + page + "&size=" + size
+                + (status == null ? "" : "&status=" + encodeQuery(status));
+        return sendAsync("GET", path, null)
+                .thenApply(body -> parsePage(body, AlertDto.class, "/alerts"));
+    }
+
+    public CompletableFuture<List<AlertDto>> getAlertsForMachine(String machineId) {
+        return getAlerts("/alerts?machineId=" + encodeQuery(machineId));
+    }
+
+    private CompletableFuture<List<AlertDto>> getAlerts(String path) {
+        return sendAsync("GET", path, null).thenApply(body -> {
             try {
                 var type = mapper.getTypeFactory().constructParametricType(PageResponse.class, AlertDto.class);
                 PageResponse<AlertDto> page = mapper.readValue(body, type);
                 return page.content();
-            } catch (Exception e) { throw new ServiceError(0, "PARSE", "Malformed /alerts response", body); }
+            } catch (Exception exception) {
+                throw new ServiceError(0, "PARSE", "Malformed " + path + " response", body);
+            }
         });
     }
 
@@ -143,13 +216,52 @@ public class MaintenanceRestClient implements AutoCloseable {
     }
 
     public CompletableFuture<List<WorkOrderDto>> getWorkOrders() {
-        return sendAsync("GET", "/work-orders", null).thenApply(body -> {
+        return getWorkOrders("/work-orders");
+    }
+
+    public CompletableFuture<PageResponse<WorkOrderDto>> getWorkOrderPage(int page, int size) {
+        return getWorkOrderPage(page, size, null);
+    }
+
+    public CompletableFuture<PageResponse<WorkOrderDto>> getWorkOrderPage(int page, int size, String status) {
+        validatePage(page, size);
+        String path = "/work-orders?page=" + page + "&size=" + size
+                + (status == null ? "" : "&status=" + encodeQuery(status));
+        return sendAsync("GET", path, null)
+                .thenApply(body -> parsePage(body, WorkOrderDto.class, "/work-orders"));
+    }
+
+    public CompletableFuture<List<WorkOrderDto>> getWorkOrdersForMachine(String machineId) {
+        return getWorkOrders("/work-orders?machineId=" + encodeQuery(machineId));
+    }
+
+    private CompletableFuture<List<WorkOrderDto>> getWorkOrders(String path) {
+        return sendAsync("GET", path, null).thenApply(body -> {
             try {
                 var type = mapper.getTypeFactory().constructParametricType(PageResponse.class, WorkOrderDto.class);
                 PageResponse<WorkOrderDto> page = mapper.readValue(body, type);
                 return page.content();
-            } catch (Exception e) { throw new ServiceError(0, "PARSE", "Malformed /work-orders response", body); }
+            } catch (Exception e) { throw new ServiceError(0, "PARSE", "Malformed " + path + " response", body); }
         });
+    }
+
+    private static String encodeQuery(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private <T> PageResponse<T> parsePage(String body, Class<T> itemType, String context) {
+        try {
+            var type = mapper.getTypeFactory().constructParametricType(PageResponse.class, itemType);
+            return mapper.readValue(body, type);
+        } catch (Exception exception) {
+            throw new ServiceError(0, "PARSE", "Malformed paged " + context + " response", body);
+        }
+    }
+
+    private static void validatePage(int page, int size) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw new IllegalArgumentException("Page must be non-negative and size must be between 1 and 100");
+        }
     }
 
     public CompletableFuture<WorkOrderDto> updateWorkOrderStatus(String id, String newStatus) {
@@ -203,21 +315,31 @@ public class MaintenanceRestClient implements AutoCloseable {
             return CompletableFuture.failedFuture(new ServiceError(0, "METHOD", "Unsupported " + method, null));
         }
 
-        ActivityLogger.log("REST", method + " " + path, "PENDING", "Sending...");
+        String requestId = UUID.randomUUID().toString();
+        long startedAt = System.nanoTime();
+        ActivityLogger.log("REST", method + " " + path, "PENDING", "Sending...",
+                requestId, null, null);
         TrafficEventBus.publish("REST", "REQUEST", "PENDING");
 
         CompletableFuture<HttpResponse<String>> response = http.sendAsync(b.build(), HttpResponse.BodyHandlers.ofString());
         response.whenComplete((resp, error) -> {
-            if (error != null) TrafficEventBus.publish("REST", "RESPONSE", "FAILED");
+            if (error != null) {
+                TrafficEventBus.publish("REST", "RESPONSE", "FAILED");
+                ActivityLogger.log("REST", method + " " + path, "FAILED", error.getMessage(),
+                        requestId, null, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt));
+            }
         });
         return response.thenApply(resp -> {
+                    long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
                     if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                         TrafficEventBus.publish("REST", "RESPONSE", "SUCCESS");
-                        ActivityLogger.log("REST", method + " " + path, "SUCCESS", "HTTP " + resp.statusCode());
+                        ActivityLogger.log("REST", method + " " + path, "SUCCESS", "HTTP " + resp.statusCode(),
+                                requestId, resp.statusCode(), elapsedMillis);
                         return resp.body();
                     }
                     TrafficEventBus.publish("REST", "RESPONSE", "FAILED");
-                    ActivityLogger.log("REST", method + " " + path, "FAILED", "HTTP " + resp.statusCode());
+                    ActivityLogger.log("REST", method + " " + path, "FAILED", "HTTP " + resp.statusCode(),
+                            requestId, resp.statusCode(), elapsedMillis);
                     throw parseError(resp, method + " " + path + " failed");
                 });
     }

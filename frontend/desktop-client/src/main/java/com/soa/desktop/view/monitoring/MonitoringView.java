@@ -18,12 +18,17 @@ import com.soa.telemetry.TelemetryReading;
 import com.soa.telemetry.anomaly.Severity;
 import com.soa.telemetry.anomaly.Thresholds;
 import javafx.animation.KeyFrame;
+import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Button;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -35,6 +40,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
+import java.util.ArrayDeque;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -56,9 +62,23 @@ public final class MonitoringView extends VBox {
     private final Label selectedMachine = new Label();
     private final VBox fleetList = new VBox(5);
     private List<MachineDto> fleetMachines = List.of();
+    private int fleetPageIndex;
+    private int fleetTotal;
+    private int fleetRequestVersion;
+    private static final int FLEET_PAGE_SIZE = 20;
     private final Label lastUpdate = new Label("Waiting for first reading…");
     private final Label alertBanner = new Label("");
     private final Label backendInfo = new Label("");
+    private final Label machineContext = new Label("Loading machine context…");
+    private final TextField fleetSearch = new TextField();
+    private final ComboBox<String> fleetStatus = new ComboBox<>();
+    private final ComboBox<String> metricSelector = new ComboBox<>();
+    private final Label chartHeading = new Label();
+    private final Button fleetPrevious = new Button("←");
+    private final Button fleetNext = new Button("→");
+    private final Label fleetPageLabel = new Label("");
+    private final PauseTransition searchDebounce = new PauseTransition(Duration.millis(350));
+    private final ArrayDeque<TelemetryReading> history = new ArrayDeque<>();
     private final MetricCard temperature = new MetricCard("TEMPERATURE", "°C", 75, 85);
     private final MetricCard vibration = new MetricCard("VIBRATION", "mm/s", 4, 7);
     private final MetricCard pressure = new MetricCard("PRESSURE", "bar", 6, 7);
@@ -87,11 +107,12 @@ public final class MonitoringView extends VBox {
                     new MachineDto("MACHINE-002", "Cooling loop 04", "WARNING", "Utilities", null),
                     new MachineDto("MACHINE-003", "Conveyor 08", "CRITICAL", "Packaging", null),
                     new MachineDto("MACHINE-004", "CNC cell 02", "OFFLINE", "Machining", null)));
+            loadMachineContext();
             statusPill.setText("SIMULATED");
-            statusPill.setState("success");
+            statusPill.setState("warning");
             startDemoReadings();
         } else {
-            loadFleet();
+            loadFleetPage(0);
             connectStream(activeMachineId);
         }
     }
@@ -125,9 +146,14 @@ public final class MonitoringView extends VBox {
 
         VBox chartPanel = new VBox(11);
         chartPanel.getStyleClass().add("surface-card");
-        Label chartHeading = new Label("TEMPERATURE / LIVE TRACE");
+        chartHeading.setText("LIVE TEMPERATURE");
         chartHeading.getStyleClass().add("panel-heading");
-        chartPanel.getChildren().addAll(chartHeading, temperatureChart);
+        metricSelector.setItems(FXCollections.observableArrayList("TEMPERATURE", "VIBRATION", "PRESSURE", "ENERGY"));
+        metricSelector.setValue("TEMPERATURE");
+        metricSelector.valueProperty().addListener((observable, oldValue, metric) -> renderHistory());
+        HBox chartTitle = new HBox(10, chartHeading, metricSelector);
+        chartTitle.setAlignment(Pos.CENTER_LEFT);
+        chartPanel.getChildren().addAll(chartTitle, temperatureChart);
         VBox.setVgrow(temperatureChart, Priority.ALWAYS);
 
         alertBanner.getStyleClass().add("alert-banner");
@@ -146,8 +172,33 @@ public final class MonitoringView extends VBox {
         fleetPanel.getStyleClass().add("surface-card");
         Label fleetHeading = new Label("MACHINE FLEET");
         fleetHeading.getStyleClass().add("panel-heading");
+        fleetSearch.setPromptText("Filter machine");
+        fleetStatus.setItems(FXCollections.observableArrayList(
+                "ALL", "RUNNING", "WARNING", "CRITICAL", "OFFLINE", "MAINTENANCE"));
+        fleetStatus.setValue("ALL");
+        searchDebounce.setOnFinished(event -> loadFleetPage(0));
+        fleetSearch.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (demo) renderFleet();
+            else {
+                searchDebounce.stop();
+                searchDebounce.playFromStart();
+            }
+        });
+        fleetStatus.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (demo) renderFleet();
+            else loadFleetPage(0);
+        });
+        fleetPrevious.getStyleClass().add("small-button");
+        fleetNext.getStyleClass().add("small-button");
+        fleetPrevious.setOnAction(event -> loadFleetPage(Math.max(0, fleetPageIndex - 1)));
+        fleetNext.setOnAction(event -> loadFleetPage(fleetPageIndex + 1));
+        fleetPageLabel.getStyleClass().add("mono-muted");
+        HBox fleetPager = new HBox(6, fleetPrevious, fleetPageLabel, fleetNext);
+        fleetPager.setAlignment(Pos.CENTER);
         fleetList.setPadding(new Insets(3, 0, 0, 0));
-        fleetPanel.getChildren().addAll(fleetHeading, fleetList);
+        machineContext.getStyleClass().add("mono-muted");
+        machineContext.setWrapText(true);
+        fleetPanel.getChildren().addAll(fleetHeading, fleetSearch, fleetStatus, fleetList, fleetPager, machineContext);
         fleetPanel.setPrefWidth(245);
         fleetPanel.setMinWidth(215);
 
@@ -159,33 +210,76 @@ public final class MonitoringView extends VBox {
         getChildren().addAll(header, inspection);
     }
 
-    private void loadFleet() {
-        rest.getMachines().whenComplete((machines, error) -> Platform.runLater(() -> {
+    private void loadFleetPage(int page) {
+        fleetPageIndex = page;
+        int requestVersion = ++fleetRequestVersion;
+        searchDebounce.stop();
+        String status = "ALL".equals(fleetStatus.getValue()) ? null : fleetStatus.getValue();
+        String query = fleetSearch.getText() == null ? "" : fleetSearch.getText().trim();
+        fleetList.getChildren().setAll(new Label("Loading machine page…"));
+        rest.getMachinePage(page, FLEET_PAGE_SIZE, status, query).whenComplete((response, error) -> Platform.runLater(() -> {
+            if (requestVersion != fleetRequestVersion) return;
             if (error != null) {
-                fleetList.getChildren().setAll(new Label("Machine list unavailable · " + error.getMessage()));
+                fleetMachines = List.of();
+                fleetTotal = 0;
+                renderFleet();
+                machineContext.setText("Machine list unavailable · " + error.getMessage());
+                updateFleetPager();
                 return;
             }
-            showFleet(machines);
+            fleetMachines = List.copyOf(response.content());
+            fleetTotal = response.totalElements();
+            renderFleet();
+            loadMachineContext();
+            updateFleetPager();
         }));
     }
 
     private void showFleet(List<MachineDto> machines) {
         fleetMachines = List.copyOf(machines);
+        fleetTotal = machines.size();
         renderFleet();
+        updateFleetPager();
+    }
+
+    private void updateFleetPager() {
+        int pageCount = Math.max(1, (int) Math.ceil(fleetTotal / (double) FLEET_PAGE_SIZE));
+        fleetPageLabel.setText(demo ? "DEMO" : (fleetPageIndex + 1) + " / " + pageCount);
+        fleetPrevious.setDisable(demo || fleetPageIndex == 0);
+        fleetNext.setDisable(demo || (fleetPageIndex + 1) * FLEET_PAGE_SIZE >= fleetTotal);
     }
 
     private void renderFleet() {
         fleetList.getChildren().clear();
-        fleetMachines.forEach(machine -> {
+        String query = fleetSearch.getText() == null ? "" : fleetSearch.getText().trim().toLowerCase();
+        String statusFilter = fleetStatus.getValue();
+        List<MachineDto> visibleMachines = fleetMachines.stream()
+                .filter(machine -> query.isEmpty() || contains(machine.id(), query) || contains(machine.name(), query))
+                .filter(machine -> statusFilter == null || "ALL".equals(statusFilter)
+                        || statusFilter.equalsIgnoreCase(machine.status()))
+                .toList();
+        if (visibleMachines.isEmpty()) {
+            Label empty = new Label(fleetMachines.isEmpty()
+                    ? "No machines returned by the maintenance service."
+                    : "No machines match the current filters.");
+            empty.getStyleClass().add("body-muted");
+            fleetList.getChildren().add(empty);
+        }
+        visibleMachines.forEach(machine -> {
             HBox row = new HBox(8);
             row.getStyleClass().add("machine-row");
             row.setAlignment(Pos.CENTER_LEFT);
             VBox details = new VBox(3);
             Label id = new Label(machine.id());
             id.getStyleClass().add("mono-text");
-            Label name = new Label(machine.name() == null ? "Industrial unit" : machine.name());
+            String location = machine.location() == null ? "Location not reported" : machine.location();
+            Label name = new Label((machine.name() == null ? "Industrial unit" : machine.name())
+                    + " · " + location);
             name.getStyleClass().add("body-muted");
-            details.getChildren().addAll(id, name);
+            Label lastSeen = new Label(machine.lastSeenAt() == null
+                    ? "Last telemetry: not reported" : "Last seen · " + TIME_FMT.format(machine.lastSeenAt()));
+            lastSeen.getStyleClass().add("mono-muted");
+            details.getChildren().addAll(id, name, lastSeen);
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
             String state = machine.status() == null ? "offline" : machine.status().toLowerCase();
@@ -202,7 +296,9 @@ public final class MonitoringView extends VBox {
         if (machineId == null || machineId.equals(activeMachineId)) return;
         activeMachineId = machineId;
         selectedMachine.setText(activeMachineId);
+        history.clear();
         renderFleet();
+        loadMachineContext();
         temperature.setOffline();
         vibration.setOffline();
         pressure.setOffline();
@@ -235,7 +331,9 @@ public final class MonitoringView extends VBox {
             vibration.updateValue(reading.getVibrationMmS());
             pressure.updateValue(reading.getPressureBar());
             energy.updateValue(reading.getEnergyKw());
-            temperatureChart.addSample(reading.getTemperatureC());
+            history.addLast(reading);
+            while (history.size() > 72) history.removeFirst();
+            renderHistory();
             lastUpdate.setText("Last reading · " + TIME_FMT.format(Instant.ofEpochMilli(reading.getTimestampEpochMs())));
             Severity severity = Thresholds.defaults().classifyAll(
                     reading.getTemperatureC(), reading.getVibrationMmS(),
@@ -243,6 +341,72 @@ public final class MonitoringView extends VBox {
             statusPill.setText(severity == Severity.NORMAL ? "RUNNING" : severity.name());
             statusPill.setState(severity == Severity.NORMAL ? "success" : severity.name().toLowerCase());
         });
+    }
+
+    private void renderHistory() {
+        String metric = metricSelector.getValue() == null ? "TEMPERATURE" : metricSelector.getValue();
+        chartHeading.setText("LIVE " + metric);
+        double warning = switch (metric) {
+            case "VIBRATION" -> 4;
+            case "PRESSURE" -> 6;
+            case "ENERGY" -> 12;
+            default -> 75;
+        };
+        double critical = switch (metric) {
+            case "VIBRATION" -> 7;
+            case "PRESSURE" -> 7;
+            case "ENERGY" -> 15;
+            default -> 85;
+        };
+        temperatureChart.clearSamples();
+        temperatureChart.setThresholds(warning, critical);
+        history.forEach(reading -> temperatureChart.addSample(metricValue(reading, metric),
+                Instant.ofEpochMilli(reading.getTimestampEpochMs())));
+    }
+
+    private static double metricValue(TelemetryReading reading, String metric) {
+        return switch (metric) {
+            case "VIBRATION" -> reading.getVibrationMmS();
+            case "PRESSURE" -> reading.getPressureBar();
+            case "ENERGY" -> reading.getEnergyKw();
+            default -> reading.getTemperatureC();
+        };
+    }
+
+    private void loadMachineContext() {
+        if (demo) {
+            machineContext.setText("DEMO MACHINE · linked incidents and work orders are simulated.");
+            return;
+        }
+        String contextMachineId = activeMachineId;
+        MachineDto selected = fleetMachines.stream()
+                .filter(machine -> machine.id().equals(contextMachineId)).findFirst().orElse(null);
+        String identity = selected == null ? contextMachineId
+                : contextMachineId + " · " + nullToDash(selected.status()) + " · "
+                + nullToDash(selected.location()) + " · last seen "
+                + (selected.lastSeenAt() == null ? "not reported" : TIME_FMT.format(selected.lastSeenAt()));
+        machineContext.setText(identity + "\nLoading linked alerts and work orders…");
+        rest.getAlertsForMachine(contextMachineId).thenCombine(rest.getWorkOrdersForMachine(contextMachineId),
+                (alerts, orders) -> new String[] {
+                        Integer.toString(alerts.size()),
+                        Long.toString(orders.stream().filter(order -> !"COMPLETED".equalsIgnoreCase(order.status())
+                                && !"CANCELLED".equalsIgnoreCase(order.status())).count())
+                }).whenComplete((counts, error) -> Platform.runLater(() -> {
+            if (!contextMachineId.equals(activeMachineId)) return;
+            if (error != null) {
+                machineContext.setText(identity + "\nLinked records unavailable · " + error.getMessage());
+            } else {
+                machineContext.setText(identity + "\nAlerts " + counts[0] + " · Open work orders " + counts[1]);
+            }
+        }));
+    }
+
+    private static String nullToDash(String value) {
+        return value == null || value.isBlank() ? "—" : value;
+    }
+
+    private static boolean contains(String value, String query) {
+        return value != null && value.toLowerCase().contains(query);
     }
 
     private void onNewAlert(AlertDecisionPayload alert) {
@@ -346,7 +510,12 @@ public final class MonitoringView extends VBox {
             vibration.updateValue(current[1]);
             pressure.updateValue(current[2]);
             energy.updateValue(current[3]);
-            temperatureChart.addSample(current[0]);
+            TelemetryReading reading = TelemetryReading.newBuilder().setTemperatureC((float) current[0])
+                    .setVibrationMmS((float) current[1]).setPressureBar((float) current[2])
+                    .setEnergyKw((float) current[3]).setTimestampEpochMs(System.currentTimeMillis()).build();
+            history.addLast(reading);
+            while (history.size() > 72) history.removeFirst();
+            renderHistory();
             lastUpdate.setText("Simulated reading · " + TIME_FMT.format(Instant.now()));
             Severity severity = Thresholds.defaults().classifyAll(current[0], current[1], current[2], current[3]);
             statusPill.setText(severity == Severity.NORMAL ? "RUNNING" : severity.name());
@@ -374,6 +543,7 @@ public final class MonitoringView extends VBox {
     }
 
     public void dispose() {
+        searchDebounce.stop();
         if (demoReadings != null) demoReadings.stop();
         if (orchestrator != null) orchestrator.close();
         if (grpc != null) grpc.close();

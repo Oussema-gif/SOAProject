@@ -6,20 +6,26 @@ import com.soa.desktop.ui.motion.Motion;
 import com.soa.desktop.ui.topology.TrafficEventBus;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public final class MaintenanceView extends VBox {
@@ -41,10 +47,26 @@ public final class MaintenanceView extends VBox {
     private final boolean demo;
     private final TableView<WorkOrderDto> table = new TableView<>();
     private final Label statusLabel = new Label("Loading work orders…");
+    private final Label detailsLabel = new Label("Select a work order to inspect its lifecycle and maintenance context.");
+    private final TextField search = new TextField();
+    private final ComboBox<String> statusFilter = new ComboBox<>();
+    private final ObservableList<WorkOrderDto> orders = FXCollections.observableArrayList();
+    private final String initialSelection;
+    private final Button previousPage = new Button("← PREVIOUS");
+    private final Button nextPage = new Button("NEXT →");
+    private final Label pageLabel = new Label("");
+    private int pageIndex;
+    private int totalElements;
+    private static final int PAGE_SIZE = 20;
 
     public MaintenanceView(MaintenanceRestClient rest, boolean demo) {
+        this(rest, demo, null);
+    }
+
+    public MaintenanceView(MaintenanceRestClient rest, boolean demo, String initialSelection) {
         this.rest = rest;
         this.demo = demo;
+        this.initialSelection = initialSelection;
         getStyleClass().add("page");
         setSpacing(18);
         setPadding(new Insets(8));
@@ -57,6 +79,14 @@ public final class MaintenanceView extends VBox {
         statusLabel.getStyleClass().add("body-muted");
         header.getChildren().addAll(sectionId, title, statusLabel);
 
+        search.setPromptText("Search work order, machine, task or alert");
+        statusFilter.setPromptText("Lifecycle");
+        statusFilter.setItems(FXCollections.observableArrayList("ALL",
+                "OPEN", "CHECKING_INVENTORY", "PENDING_RESERVATION", "WAITING_FOR_PARTS",
+                "READY_FOR_MAINTENANCE", "IN_PROGRESS", "COMPLETED", "CANCELLED"));
+        statusFilter.setValue("ALL");
+        HBox filters = new HBox(10, search, statusFilter);
+        HBox.setHgrow(search, Priority.ALWAYS);
         table.getStyleClass().add("data-table");
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setRowFactory(view -> {
@@ -67,8 +97,38 @@ public final class MaintenanceView extends VBox {
             return row;
         });
         createColumns();
+        FilteredList<WorkOrderDto> filteredOrders = new FilteredList<>(orders);
+        table.setItems(filteredOrders);
+        search.textProperty().addListener((observable, oldValue, newValue) -> applyFilters(filteredOrders));
+        statusFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyFilters(filteredOrders));
+        table.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, order) ->
+                showDetails(order));
+        detailsLabel.getStyleClass().add("mono-muted");
+        detailsLabel.setWrapText(true);
+        VBox details = new VBox(7);
+        details.getStyleClass().add("surface-card");
+        Label detailsHeading = new Label("MAINTENANCE CONTEXT");
+        detailsHeading.getStyleClass().add("panel-heading");
+        details.getChildren().addAll(detailsHeading, detailsLabel);
+        previousPage.getStyleClass().add("small-button");
+        nextPage.getStyleClass().add("small-button");
+        previousPage.setOnAction(event -> {
+            if (pageIndex > 0) {
+                pageIndex--;
+                loadPage();
+            }
+        });
+        nextPage.setOnAction(event -> {
+            if ((pageIndex + 1) * PAGE_SIZE < totalElements) {
+                pageIndex++;
+                loadPage();
+            }
+        });
+        pageLabel.getStyleClass().add("mono-muted");
+        HBox pager = new HBox(8, previousPage, pageLabel, nextPage);
+        pager.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
         VBox.setVgrow(table, Priority.ALWAYS);
-        getChildren().addAll(header, table);
+        getChildren().addAll(header, filters, table, pager, details);
         loadData();
     }
 
@@ -175,7 +235,7 @@ public final class MaintenanceView extends VBox {
 
     private void loadData() {
         if (demo) {
-            table.getItems().setAll(List.of(
+            orders.setAll(List.of(
                     new WorkOrderDto("WO-1A42D7", "MACHINE-003", "ALT-7A31C9", "Inspect thermal bearing",
                             "Thermal envelope exceeded; confirm lubrication and alignment.", "OPEN", "HIGH",
                             "TECH-01", null, Instant.now().minusSeconds(5400)),
@@ -188,17 +248,72 @@ public final class MaintenanceView extends VBox {
                     new WorkOrderDto("WO-18F3C4", "MACHINE-004", null, "Inspect spindle lubrication",
                             "Preventive maintenance on spindle assembly.", "IN_PROGRESS", "MEDIUM",
                             "TECH-03", null, Instant.now().minusSeconds(18600))));
+            updateFilteredItems();
+            pageLabel.setText("DEMO DATA · " + orders.size() + " work orders");
             statusLabel.setText("DEMO MODE · lifecycle controls are simulated");
             return;
         }
-        rest.getWorkOrders().whenComplete((orders, error) -> Platform.runLater(() -> {
+        pageIndex = 0;
+        loadPage();
+    }
+
+    private void loadPage() {
+        statusLabel.setText("Loading work-order page " + (pageIndex + 1) + "…");
+        rest.getWorkOrderPage(pageIndex, PAGE_SIZE).whenComplete((response, error) -> Platform.runLater(() -> {
             if (error != null) {
                 statusLabel.setText("Could not load work orders · " + error.getMessage());
                 return;
             }
-            table.getItems().setAll(orders);
-            statusLabel.setText("Showing " + orders.size() + " dispatched work orders");
+            orders.setAll(response.content());
+            totalElements = response.totalElements();
+            updateFilteredItems();
+            int totalPages = Math.max(1, (int) Math.ceil(totalElements / (double) PAGE_SIZE));
+            pageLabel.setText("PAGE " + (pageIndex + 1) + " / " + totalPages + " · " + totalElements + " work orders");
+            statusLabel.setText("Work-order register · " + totalElements + " total records");
         }));
+        previousPage.setDisable(pageIndex == 0);
+        nextPage.setDisable((pageIndex + 1) * PAGE_SIZE >= totalElements);
+    }
+
+    private void updateFilteredItems() {
+        applyFilters((FilteredList<WorkOrderDto>) table.getItems());
+        previousPage.setDisable(pageIndex == 0);
+        nextPage.setDisable((pageIndex + 1) * PAGE_SIZE >= totalElements);
+        if (initialSelection != null) {
+            orders.stream().filter(order -> order.id() != null
+                    && order.id().toLowerCase(Locale.ROOT).contains(initialSelection.toLowerCase(Locale.ROOT)))
+                    .findFirst().ifPresent(table.getSelectionModel()::select);
+        } else if (!table.getItems().isEmpty()) {
+            table.getSelectionModel().selectFirst();
+        }
+    }
+
+    private void applyFilters(FilteredList<WorkOrderDto> filtered) {
+        if (filtered == null) return;
+        String query = search.getText() == null ? "" : search.getText().trim().toLowerCase(Locale.ROOT);
+        String status = statusFilter.getValue();
+        filtered.setPredicate(order -> (query.isEmpty() || contains(order.id(), query)
+                        || contains(order.machineId(), query) || contains(order.title(), query)
+                        || contains(order.alertId(), query))
+                && (status == null || "ALL".equals(status) || status.equalsIgnoreCase(order.status())));
+    }
+
+    private void showDetails(WorkOrderDto order) {
+        if (order == null) {
+            detailsLabel.setText("Select a work order to inspect its lifecycle and maintenance context.");
+            return;
+        }
+        detailsLabel.setText("ID  " + order.id() + "     MACHINE  " + order.machineId()
+                + "     ALERT  " + (order.alertId() == null ? "—" : order.alertId())
+                + "\nTASK  " + order.title() + "     PRIORITY  " + order.priority()
+                + "     STATE  " + order.status().replace('_', ' ')
+                + "\nTECHNICIAN  " + (order.assignedTechnicianId() == null ? "Not assigned" : order.assignedTechnicianId())
+                + "     RESERVATION  " + (order.reservationReference() == null ? "—" : order.reservationReference())
+                + "\n" + (order.description() == null ? "No maintenance notes." : order.description()));
+    }
+
+    private static boolean contains(String value, String query) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(query);
     }
 
     private static WorkOrderDto withStatus(WorkOrderDto order, String status) {
