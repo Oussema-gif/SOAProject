@@ -7,6 +7,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
+import com.soa.desktop.ui.topology.TrafficEventBus;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -36,19 +37,22 @@ public class GrpcTelemetryClient implements AutoCloseable {
             }
 
             @Override public void onNext(TelemetryReading r) {
+                TrafficEventBus.publish("gRPC", "RESPONSE", "SUCCESS");
                 try { onReading.accept(r); }
                 catch (Exception e) { onError.accept(e); }
             }
 
             @Override public void onError(Throwable t) {
+                TrafficEventBus.publish("gRPC", "RESPONSE", "FAILED");
                 onError.accept(t);
             }
 
             @Override public void onCompleted() {
-                // server closed the stream normally
+                TrafficEventBus.publish("gRPC", "RESPONSE", "SUCCESS");
             }
         };
 
+        TrafficEventBus.publish("gRPC", "REQUEST", "PENDING");
         asyncStub.streamMachineTelemetry(
                 MachineRequest.newBuilder().setMachineId(machineId).build(),
                 observer);

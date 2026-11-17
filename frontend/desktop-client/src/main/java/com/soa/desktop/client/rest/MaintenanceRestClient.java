@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.soa.desktop.client.rest.dto.*;
 import com.soa.desktop.util.ActivityLogger;
+import com.soa.desktop.ui.topology.TrafficEventBus;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -62,12 +63,15 @@ public class MaintenanceRestClient implements AutoCloseable {
                     .build();
 
             ActivityLogger.log("REST", "POST /auth/login", "PENDING", "Authenticating...");
+            TrafficEventBus.publish("REST", "REQUEST", "PENDING");
 
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200) {
+                TrafficEventBus.publish("REST", "RESPONSE", "FAILED");
                 ActivityLogger.log("REST", "POST /auth/login", "FAILED", "HTTP " + resp.statusCode());
                 throw parseError(resp, "Login failed");
             }
+            TrafficEventBus.publish("REST", "RESPONSE", "SUCCESS");
             LoginResponse lr = mapper.readValue(resp.body(), LoginResponse.class);
             this.accessToken = lr.accessToken();
             this.tokenExpiresAt = Instant.now().plusSeconds(lr.expiresInSeconds());
@@ -78,6 +82,7 @@ public class MaintenanceRestClient implements AutoCloseable {
         } catch (ServiceError e) {
             throw e;
         } catch (Exception e) {
+            TrafficEventBus.publish("REST", "RESPONSE", "FAILED");
             ActivityLogger.log("REST", "POST /auth/login", "FAILED", e.getMessage());
             throw new ServiceError(0, "NETWORK", "Cannot reach auth service: " + e.getMessage(), null);
         }
@@ -199,13 +204,19 @@ public class MaintenanceRestClient implements AutoCloseable {
         }
 
         ActivityLogger.log("REST", method + " " + path, "PENDING", "Sending...");
+        TrafficEventBus.publish("REST", "REQUEST", "PENDING");
 
-        return http.sendAsync(b.build(), HttpResponse.BodyHandlers.ofString())
-                .thenApply(resp -> {
+        CompletableFuture<HttpResponse<String>> response = http.sendAsync(b.build(), HttpResponse.BodyHandlers.ofString());
+        response.whenComplete((resp, error) -> {
+            if (error != null) TrafficEventBus.publish("REST", "RESPONSE", "FAILED");
+        });
+        return response.thenApply(resp -> {
                     if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
+                        TrafficEventBus.publish("REST", "RESPONSE", "SUCCESS");
                         ActivityLogger.log("REST", method + " " + path, "SUCCESS", "HTTP " + resp.statusCode());
                         return resp.body();
                     }
+                    TrafficEventBus.publish("REST", "RESPONSE", "FAILED");
                     ActivityLogger.log("REST", method + " " + path, "FAILED", "HTTP " + resp.statusCode());
                     throw parseError(resp, method + " " + path + " failed");
                 });

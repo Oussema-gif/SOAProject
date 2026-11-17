@@ -1,68 +1,89 @@
 package com.soa.desktop.view.activity;
 
 import com.soa.desktop.util.ActivityLogger;
+import com.soa.desktop.ui.motion.Motion;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.css.PseudoClass;
+import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
-public class ActivityView extends VBox {
+public final class ActivityView extends VBox {
+
+    private static final PseudoClass CRITICAL = PseudoClass.getPseudoClass("critical");
+    private static final PseudoClass WARNING = PseudoClass.getPseudoClass("warning");
+    private static final PseudoClass SUCCESS = PseudoClass.getPseudoClass("success");
 
     public ActivityView() {
-        setSpacing(24);
+        getStyleClass().add("page");
+        setSpacing(18);
+        setPadding(new Insets(8));
 
-        VBox header = new VBox(8);
-        Label sectionId = new Label("06 / ACTIVITY");
+        VBox header = new VBox(7);
+        Label sectionId = new Label("07 / SYSTEM TRACE");
         sectionId.getStyleClass().add("section-label");
-        Label title = new Label("Protocol Activity Log");
-        title.getStyleClass().add("editorial-title");
-        Label desc = new Label("Real-time trace of REST, SOAP, and gRPC communication.");
-        desc.getStyleClass().add("mono-muted");
-        header.getChildren().addAll(sectionId, title, desc);
+        Label title = new Label("Protocol activity");
+        title.getStyleClass().add("page-title");
+        Label description = new Label("Live REST, SOAP and gRPC traffic emitted by the desktop clients.");
+        description.getStyleClass().add("body-muted");
+        header.getChildren().addAll(sectionId, title, description);
 
         TableView<ActivityLogger.LogEntry> table = new TableView<>(ActivityLogger.getLogs());
         table.getStyleClass().add("data-table");
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        table.setRowFactory(view -> {
+            TableRow<ActivityLogger.LogEntry> row = new TableRow<>();
+            row.itemProperty().addListener((observable, oldValue, newValue) -> {
+                if (newValue != null && newValue != oldValue) Motion.enter(row).play();
+            });
+            return row;
+        });
 
-        TableColumn<ActivityLogger.LogEntry, String> colTime = new TableColumn<>("TIME");
-        colTime.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().time()));
-        colTime.setPrefWidth(120);
-
-        TableColumn<ActivityLogger.LogEntry, String> colProto = new TableColumn<>("PROTOCOL");
-        colProto.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().protocol()));
-        colProto.setPrefWidth(100);
-        colProto.setCellFactory(col -> new TableCell<>() {
+        TableColumn<ActivityLogger.LogEntry, String> time = column("TIME", ActivityLogger.LogEntry::time, 130);
+        TableColumn<ActivityLogger.LogEntry, String> protocol = column("PROTOCOL", ActivityLogger.LogEntry::protocol, 100);
+        protocol.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null); setStyle("");
-                } else {
-                    setText(item);
-                    getStyleClass().removeAll("status-critical", "status-warning", "status-success", "mono-text");
-                    if ("REST".equals(item)) getStyleClass().add("status-critical"); // Terracotta
-                    else if ("SOAP".equals(item)) getStyleClass().add("mono-text"); // Graphite
-                    else getStyleClass().add("status-success"); // gRPC
-                }
+                boolean failed = !empty && "FAILED".equalsIgnoreCase(getTableView().getItems()
+                        .get(getIndex()).status());
+                pseudoClassStateChanged(CRITICAL, failed);
+                pseudoClassStateChanged(WARNING, !empty && "SOAP".equalsIgnoreCase(item));
+                pseudoClassStateChanged(SUCCESS, !empty && "gRPC".equalsIgnoreCase(item));
+                setText(empty ? null : item);
             }
         });
-
-        TableColumn<ActivityLogger.LogEntry, String> colOp = new TableColumn<>("OPERATION");
-        colOp.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().operation()));
-        colOp.setPrefWidth(250);
-
-        TableColumn<ActivityLogger.LogEntry, String> colStatus = new TableColumn<>("STATUS");
-        colStatus.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().status()));
-        colStatus.setPrefWidth(120);
-
-        TableColumn<ActivityLogger.LogEntry, String> colDetails = new TableColumn<>("DETAILS");
-        colDetails.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().details()));
-
-        table.getColumns().addAll(colTime, colProto, colOp, colStatus, colDetails);
+        TableColumn<ActivityLogger.LogEntry, String> operation =
+                column("OPERATION", ActivityLogger.LogEntry::operation, 250);
+        TableColumn<ActivityLogger.LogEntry, String> status =
+                column("RESULT", ActivityLogger.LogEntry::status, 130);
+        status.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                pseudoClassStateChanged(CRITICAL, !empty && "FAILED".equalsIgnoreCase(item));
+                pseudoClassStateChanged(SUCCESS, !empty && "SUCCESS".equalsIgnoreCase(item));
+                setText(empty ? null : item);
+            }
+        });
+        TableColumn<ActivityLogger.LogEntry, String> details =
+                column("DETAILS", ActivityLogger.LogEntry::details, 400);
+        table.getColumns().addAll(time, protocol, operation, status, details);
         VBox.setVgrow(table, Priority.ALWAYS);
         getChildren().addAll(header, table);
+    }
+
+    private TableColumn<ActivityLogger.LogEntry, String> column(String title,
+                                                                java.util.function.Function<ActivityLogger.LogEntry, String> value,
+                                                                double width) {
+        TableColumn<ActivityLogger.LogEntry, String> column = new TableColumn<>(title);
+        column.setCellValueFactory(cell -> new SimpleStringProperty(value.apply(cell.getValue())));
+        column.setPrefWidth(width);
+        return column;
     }
 }
