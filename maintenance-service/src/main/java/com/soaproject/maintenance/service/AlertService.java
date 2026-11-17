@@ -11,6 +11,7 @@ import com.soaproject.maintenance.exception.InvalidStateTransitionException;
 import com.soaproject.maintenance.exception.ResourceNotFoundException;
 import com.soaproject.maintenance.repository.AlertRepository;
 import com.soaproject.maintenance.repository.MachineRepository;
+import com.soaproject.maintenance.util.PageRequestValidator;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -47,6 +48,7 @@ public class AlertService {
                                     AlertSeverity severity,
                                     int page,
                                     int size) {
+        PageRequestValidator.validate(page, size);
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by(Sort.Direction.DESC, "occurredAt"));
         return alertRepository.findAll(filterBy(status, machineId, severity), pageable)

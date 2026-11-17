@@ -2,6 +2,7 @@ package com.soa.desktop.view.monitoring;
 
 import com.soa.desktop.client.grpc.GrpcTelemetryClient;
 import com.soa.desktop.client.rest.MaintenanceRestClient;
+import com.soa.desktop.client.rest.dto.AlertDto;
 import com.soa.desktop.client.rest.dto.CreateAlertRequest;
 import com.soa.desktop.client.rest.dto.CreateWorkOrderRequest;
 import com.soa.desktop.client.rest.dto.MachineDto;
@@ -39,9 +40,13 @@ import javafx.util.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.ArrayDeque;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class MonitoringView extends VBox {
@@ -54,6 +59,8 @@ public final class MonitoringView extends VBox {
 
     private final MaintenanceRestClient rest;
     private final InventorySoapClient soap;
+    private final Map<String, CompletableFuture<AlertDto>> alertCreations =
+            new ConcurrentHashMap<>();
     private final String grpcHost;
     private final int grpcPort;
     private final boolean demo;
@@ -416,9 +423,15 @@ public final class MonitoringView extends VBox {
         showAlertBanner(bannerText, alert.severity());
         Platform.runLater(() -> backendInfo.setText("Creating alert on maintenance service…"));
 
+        String sourceEventId = UUID.nameUUIDFromBytes((alert.machineId() + "|"
+                + alert.metric().name() + "|" + alert.occurredAt().toEpochMilli())
+                .getBytes(StandardCharsets.UTF_8)).toString();
         var request = new CreateAlertRequest(alert.machineId(), alert.metric().name(), alert.severity().name(),
-                alert.observedValue(), alert.thresholdValue(), bannerText, alert.occurredAt());
-        rest.createAlert(request).whenComplete((alertDto, error) -> {
+                alert.observedValue(), alert.thresholdValue(), bannerText, alert.occurredAt(), sourceEventId);
+        String alertKey = alert.machineId() + "|" + alert.metric().name();
+        CompletableFuture<AlertDto> alertCreation = rest.createAlert(request);
+        alertCreations.put(alertKey, alertCreation);
+        alertCreation.whenComplete((alertDto, error) -> {
             if (error != null) {
                 Platform.runLater(() -> backendInfo.setText("Alert creation failed: " + error.getMessage()));
                 return;
@@ -446,8 +459,18 @@ public final class MonitoringView extends VBox {
                     String partId = "PART-001";
                     int quantity = 1;
                     soap.checkStock(partId, quantity).whenComplete((stock, stockError) -> {
-                        if (stockError != null || stock == null || !stock.isAvailable()) {
-                            Platform.runLater(() -> backendInfo.setText("Stock check failed or part unavailable."));
+                        if (stockError != null || stock == null) {
+                            Platform.runLater(() -> backendInfo.setText("Stock check failed: "
+                                    + (stockError == null ? "empty response" : stockError.getMessage())));
+                            return;
+                        }
+                        if (!stock.isAvailable()) {
+                            rest.updateWorkOrderStatus(workOrder.id(), "WAITING_FOR_PARTS")
+                                    .whenComplete((waiting, waitingError) -> Platform.runLater(() ->
+                                            backendInfo.setText(waitingError == null
+                                                    ? "Waiting for parts · " + partId
+                                                    : "Stock unavailable; work-order update failed: "
+                                                    + waitingError.getMessage())));
                             return;
                         }
                         String requestId = UUID.randomUUID().toString();
@@ -471,6 +494,34 @@ public final class MonitoringView extends VBox {
 
     private void onCleared(AlertDecisionPayload alert) {
         showAlertBanner("CLEARED — " + alert.metric() + " returned to normal (was " + alert.severity() + ")", null);
+        String alertKey = alert.machineId() + "|" + alert.metric().name();
+        CompletableFuture<AlertDto> pending = alertCreations.get(alertKey);
+        CompletableFuture<AlertDto> alertToResolve =
+                pending == null
+                        ? findOpenAlert(alert)
+                        : pending.handle((created, error) -> null)
+                                .thenCompose(ignored -> findOpenAlert(alert));
+
+        alertToResolve.thenCompose(active -> active == null
+                        ? CompletableFuture.completedFuture(null)
+                        : rest.resolveAlert(active.id()))
+                .whenComplete((resolved, error) -> {
+                    if (pending != null) alertCreations.remove(alertKey, pending);
+                    Platform.runLater(() -> backendInfo.setText(error != null
+                            ? "Alert recovery update failed: " + error.getMessage()
+                            : resolved == null
+                                    ? "Telemetry recovered · no persisted alert to resolve"
+                                    : "Alert resolved · " + resolved.id()));
+                });
+    }
+
+    private CompletableFuture<AlertDto> findOpenAlert(AlertDecisionPayload decision) {
+        return rest.getAlertsForMachine(decision.machineId()).thenApply(alerts -> alerts.stream()
+                .filter(alert -> alert.metricType().equalsIgnoreCase(decision.metric().name()))
+                .filter(alert -> "ACTIVE".equalsIgnoreCase(alert.status())
+                        || "ACKNOWLEDGED".equalsIgnoreCase(alert.status()))
+                .findFirst()
+                .orElse(null));
     }
 
     private void onConnectionError(Throwable error) {

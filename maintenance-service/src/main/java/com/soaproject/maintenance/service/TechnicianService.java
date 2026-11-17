@@ -8,6 +8,7 @@ import com.soaproject.maintenance.exception.DuplicateResourceException;
 import com.soaproject.maintenance.exception.ResourceNotFoundException;
 import com.soaproject.maintenance.repository.TechnicianRepository;
 import com.soaproject.maintenance.repository.UserRepository;
+import com.soaproject.maintenance.util.PageRequestValidator;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +34,7 @@ public class TechnicianService {
     }
 
     public Page<TechnicianResponse> list(int page, int size, Boolean active, String q) {
+        PageRequestValidator.validate(page, size);
         Pageable pageable = PageRequest.of(page, size, Sort.by("fullName").ascending());
         Specification<TechnicianEntity> spec = filterBy(active, q);
         return repository.findAll(spec, pageable).map(this::toResponse);

@@ -38,6 +38,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, "NOT_FOUND", ex.getMessage(), req, null);
     }
 
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<ApiError> onInvalidRequest(InvalidRequestException ex,
+                                                      HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", ex.getMessage(), req, null);
+    }
+
     @ExceptionHandler(InvalidStateTransitionException.class)
     public ResponseEntity<ApiError> onInvalidState(InvalidStateTransitionException ex,
                                                    HttpServletRequest req) {

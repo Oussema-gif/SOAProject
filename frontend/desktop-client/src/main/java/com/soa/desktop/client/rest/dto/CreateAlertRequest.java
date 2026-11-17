@@ -11,4 +11,5 @@ public record CreateAlertRequest(
         double thresholdValue,
         String message,
         @JsonFormat(shape = JsonFormat.Shape.STRING)
-        Instant occurredAt) { }
+        Instant occurredAt,
+        String sourceEventId) { }

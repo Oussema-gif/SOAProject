@@ -186,7 +186,7 @@ public class MaintenanceRestClient implements AutoCloseable {
     }
 
     public CompletableFuture<List<AlertDto>> getAlertsForMachine(String machineId) {
-        return getAlerts("/alerts?machineId=" + encodeQuery(machineId));
+        return getAlerts("/alerts?machineId=" + encodeQuery(machineId) + "&size=100");
     }
 
     private CompletableFuture<List<AlertDto>> getAlerts(String path) {

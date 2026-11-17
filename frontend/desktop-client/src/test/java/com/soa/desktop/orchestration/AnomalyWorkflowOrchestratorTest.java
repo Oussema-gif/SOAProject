@@ -9,7 +9,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -18,7 +20,7 @@ import static org.mockito.Mockito.*;
 class AnomalyWorkflowOrchestratorTest {
 
     // Fake stream we control from the test — replaces the real gRPC one
-    private Consumer<TelemetryReading> streamFeed;
+    private Map<String, Consumer<TelemetryReading>> streamFeeds;
     private GrpcTelemetryClient fakeGrpc;
     private Thresholds thresholds;
 
@@ -34,12 +36,13 @@ class AnomalyWorkflowOrchestratorTest {
         clearedAlerts = new ArrayList<>();
         errors = new ArrayList<>();
         readingCount = 0;
+        streamFeeds = new HashMap<>();
 
         // Mock GrpcTelemetryClient so it captures the onReading callback
         // instead of opening a real network connection.
         fakeGrpc = mock(GrpcTelemetryClient.class);
         when(fakeGrpc.stream(anyString(), any(), any())).thenAnswer(inv -> {
-            streamFeed = inv.getArgument(1);
+            streamFeeds.put(inv.getArgument(0), inv.getArgument(1));
             return (GrpcTelemetryClient.Cancellable) () -> { /* no-op */ };
         });
     }
@@ -76,9 +79,9 @@ class AnomalyWorkflowOrchestratorTest {
         var orch = newOrchestrator("M1");
         orch.start();
 
-        streamFeed.accept(reading("M1", 55, 2, 4, 8, 1000));
-        streamFeed.accept(reading("M1", 60, 2, 4, 8, 2000));
-        streamFeed.accept(reading("M1", 65, 2, 4, 8, 3000));
+        streamFeeds.get("M1").accept(reading("M1", 55, 2, 4, 8, 1000));
+        streamFeeds.get("M1").accept(reading("M1", 60, 2, 4, 8, 2000));
+        streamFeeds.get("M1").accept(reading("M1", 65, 2, 4, 8, 3000));
 
         assertEquals(3, readingCount, "onEveryReading must fire per reading");
         assertTrue(newAlerts.isEmpty(), "no alerts expected for normal readings");
@@ -91,7 +94,7 @@ class AnomalyWorkflowOrchestratorTest {
         orch.start();
 
         for (int i = 0; i < 10; i++) {
-            streamFeed.accept(reading("M1", 90, 2, 4, 8, 1000L + i * 1000));
+            streamFeeds.get("M1").accept(reading("M1", 90, 2, 4, 8, 1000L + i * 1000));
         }
 
         assertEquals(10, readingCount);
@@ -106,9 +109,9 @@ class AnomalyWorkflowOrchestratorTest {
         var orch = newOrchestrator("M1");
         orch.start();
 
-        streamFeed.accept(reading("M1", 80, 2, 4, 8, 1000));   // WARNING
-        streamFeed.accept(reading("M1", 82, 2, 4, 8, 2000));   // still WARNING — deduped
-        streamFeed.accept(reading("M1", 90, 2, 4, 8, 3000));   // CRITICAL — escalation
+        streamFeeds.get("M1").accept(reading("M1", 80, 2, 4, 8, 1000));   // WARNING
+        streamFeeds.get("M1").accept(reading("M1", 82, 2, 4, 8, 2000));   // still WARNING — deduped
+        streamFeeds.get("M1").accept(reading("M1", 90, 2, 4, 8, 3000));   // CRITICAL — escalation
 
         assertEquals(2, newAlerts.size());
         assertEquals(Severity.WARNING,  newAlerts.get(0).severity());
@@ -120,9 +123,9 @@ class AnomalyWorkflowOrchestratorTest {
         var orch = newOrchestrator("M1");
         orch.start();
 
-        streamFeed.accept(reading("M1", 90, 2, 4, 8, 1000));   // CRITICAL alert
-        streamFeed.accept(reading("M1", 55, 2, 4, 8, 2000));   // back to normal → clear
-        streamFeed.accept(reading("M1", 90, 2, 4, 8, 3000));   // CRITICAL alert again
+        streamFeeds.get("M1").accept(reading("M1", 90, 2, 4, 8, 1000));   // CRITICAL alert
+        streamFeeds.get("M1").accept(reading("M1", 55, 2, 4, 8, 2000));   // back to normal → clear
+        streamFeeds.get("M1").accept(reading("M1", 90, 2, 4, 8, 3000));   // CRITICAL alert again
 
         assertEquals(2, newAlerts.size(), "alert again after recovery");
         assertEquals(1, clearedAlerts.size(), "one clear on recovery");
@@ -138,16 +141,12 @@ class AnomalyWorkflowOrchestratorTest {
         orch1.start();
         orch2.start();
 
-        // Both share the same streamFeed because our mock stub returns
-        // the same Consumer — replace per test if you want isolation.
-        // For this test, just verify each orchestrator fires for its own machine.
-        // (Simplification: feed one machine at a time.)
+        streamFeeds.get("M1").accept(reading("M1", 90, 2, 4, 8, 1000));
+        streamFeeds.get("M2").accept(reading("M2", 55, 2, 4, 8, 1000));
 
-        // Feed M1 reading — orch1 sees it, orch2 ignores it (filtered by machineId? no —
-        // our impl does NOT filter; the server-side stream does. So both will act.)
-        // To test independence properly, use two separate orchestrators connected to
-        // separate mock streams — out of scope for this test. Skip.
-        assertTrue(true);
+        assertEquals(1, newAlerts.size());
+        assertEquals("M1", newAlerts.get(0).machineId());
+        assertEquals(2, readingCount);
     }
 
     @Test

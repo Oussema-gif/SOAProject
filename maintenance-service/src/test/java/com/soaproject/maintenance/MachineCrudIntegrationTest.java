@@ -99,6 +99,16 @@ class MachineCrudIntegrationTest {
     }
 
     @Test
+    void listRejectsUnboundedPagination() {
+        HttpHeaders h = bearer(adminToken());
+        ResponseEntity<String> res = http.exchange(url("/api/v1/machines?page=-1&size=101"),
+                HttpMethod.GET, new HttpEntity<>(h), String.class);
+
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(res.getBody()).contains("INVALID_REQUEST");
+    }
+
+    @Test
     void getByMachineIdReturnsDetails() {
         HttpHeaders h = bearer(adminToken());
         ResponseEntity<MachineResponse> res = http.exchange(url("/api/v1/machines/MACHINE-001"),

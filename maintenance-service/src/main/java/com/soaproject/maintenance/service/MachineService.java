@@ -8,6 +8,7 @@ import com.soaproject.maintenance.entity.MachineStatus;
 import com.soaproject.maintenance.exception.DuplicateResourceException;
 import com.soaproject.maintenance.exception.ResourceNotFoundException;
 import com.soaproject.maintenance.repository.MachineRepository;
+import com.soaproject.maintenance.util.PageRequestValidator;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,7 @@ public class MachineService {
     }
 
     public Page<MachineResponse> list(int page, int size, MachineStatus status, String q) {
+        PageRequestValidator.validate(page, size);
         Pageable pageable = PageRequest.of(page, size, Sort.by("machineId").ascending());
         Specification<MachineEntity> spec = filterBy(status, q);
         return repository.findAll(spec, pageable).map(this::toResponse);

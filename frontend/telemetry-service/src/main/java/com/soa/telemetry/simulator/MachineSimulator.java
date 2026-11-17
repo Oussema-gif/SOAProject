@@ -28,6 +28,13 @@ public class MachineSimulator implements AutoCloseable {
     public void addListener(Consumer<TelemetryReading> l) { listeners.add(l); }
     public void removeListener(Consumer<TelemetryReading> l) { listeners.remove(l); }
 
+    public boolean publish(TelemetryReading reading) {
+        if (!exists(reading.getMachineId())) return false;
+        latest.put(reading.getMachineId(), reading);
+        notifyListeners(reading);
+        return true;
+    }
+
     public void setScenario(String id, Scenario sc) {
         var s = machines.get(id);
         if (s == null) throw new IllegalArgumentException("Unknown machine " + id);
@@ -49,9 +56,13 @@ public class MachineSimulator implements AutoCloseable {
             s.advance();
             var r = reading(s);
             latest.put(s.id, r);
-            for (var l : listeners) {
-                try { l.accept(r); } catch (Exception e) { listeners.remove(l); }
-            }
+            notifyListeners(r);
+        }
+    }
+
+    private void notifyListeners(TelemetryReading reading) {
+        for (var listener : listeners) {
+            try { listener.accept(reading); } catch (Exception e) { listeners.remove(listener); }
         }
     }
 

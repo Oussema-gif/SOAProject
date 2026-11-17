@@ -29,6 +29,44 @@ The standard desktop launch opens the authenticated, live operations interface.
 The UI's demo mode is an optional developer simulation, not the default
 experience.
 
+```mermaid
+flowchart LR
+    Desktop[JavaFX desktop client]
+    Maintenance[Maintenance REST service]
+    Inventory[Inventory SOAP service]
+    Telemetry[Telemetry gRPC service]
+    MaintenanceDB[(PostgreSQL maintenance schema)]
+    InventoryDB[(PostgreSQL inventory schema)]
+
+    Desktop -->|REST + JWT| Maintenance
+    Desktop -->|SOAP + API key| Inventory
+    Desktop -->|gRPC stream and batch| Telemetry
+    Maintenance --> MaintenanceDB
+    Inventory --> InventoryDB
+```
+
+```mermaid
+sequenceDiagram
+    participant T as Telemetry gRPC
+    participant D as Desktop client
+    participant R as Maintenance REST
+    participant I as Inventory SOAP
+
+    T-->>D: Live machine readings
+    D->>D: Detect anomaly or recovery
+    D->>R: Create/resolve alert and create work order
+    D->>R: Move work order to inventory check
+    D->>I: Check stock and reserve part
+    D->>R: Link reservation to work order
+```
+
+Telemetry is currently simulator-backed and held in memory: batch readings
+update the live snapshot and active streams, but are not stored as historical
+records. The desktop coordinates the alert/work-order/inventory flow; there is
+no distributed transaction or durable retry queue across the REST and SOAP
+services. A failed cross-service step is reported in the client and may need
+operator reconciliation.
+
 ### Technology Stack
 
 | Category | Technologies |
@@ -40,7 +78,7 @@ experience.
 | Desktop Application | JavaFX |
 | Database | PostgreSQL |
 | Build Management | Maven |
-| API Documentation | Swagger / OpenAPI |
+| API Documentation | Static OpenAPI specification |
 | Testing | JUnit 5, Spring Boot Test, Testcontainers |
 | Infrastructure | Docker, Docker Compose |
 

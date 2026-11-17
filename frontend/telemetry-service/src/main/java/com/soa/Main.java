@@ -10,7 +10,8 @@ import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        var sim = new MachineSimulator(List.of("MACHINE-001", "MACHINE-002", "MACHINE-003"));
+        var sim = new MachineSimulator(List.of(
+                "MACHINE-001", "MACHINE-002", "MACHINE-003", "MACHINE-004"));
         sim.start();
 
         Server server = ServerBuilder.forPort(9090)

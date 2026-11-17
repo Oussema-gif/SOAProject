@@ -14,6 +14,8 @@ import com.soaproject.inventory.wsdl.CreatePurchaseOrderResponse;
 import com.soaproject.inventory.wsdl.GetSparePartResponse;
 import com.soaproject.inventory.wsdl.ReleaseReservationResponse;
 import com.soaproject.inventory.wsdl.ReservePartResponse;
+import org.springframework.jdbc.core.ConnectionCallback;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,19 +31,22 @@ public class InventoryService {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final ReservationIdGenerator reservationIdGenerator;
     private final PurchaseOrderIdGenerator purchaseOrderIdGenerator;
+    private final JdbcTemplate jdbcTemplate;
 
     public InventoryService(SparePartRepository sparePartRepository,
             PartReservationRepository reservationRepository,
             StockMovementRepository stockMovementRepository,
             PurchaseOrderRepository purchaseOrderRepository,
             ReservationIdGenerator reservationIdGenerator,
-            PurchaseOrderIdGenerator purchaseOrderIdGenerator) {
+            PurchaseOrderIdGenerator purchaseOrderIdGenerator,
+            JdbcTemplate jdbcTemplate) {
         this.sparePartRepository = sparePartRepository;
         this.reservationRepository = reservationRepository;
         this.stockMovementRepository = stockMovementRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.reservationIdGenerator = reservationIdGenerator;
         this.purchaseOrderIdGenerator = purchaseOrderIdGenerator;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -99,10 +104,13 @@ public class InventoryService {
                     "workOrderId is required");
         }
 
+        lockRequestId(requestId);
         Optional<PartReservationEntity> existing = reservationRepository.findByRequestId(requestId);
         if (existing.isPresent()) {
             PartReservationEntity r = existing.get();
-            if (!r.getPartId().equals(partId) || r.getQuantity() != quantity) {
+            if (!r.getPartId().equals(partId)
+                    || r.getQuantity() != quantity
+                    || !r.getWorkOrderId().equals(workOrderId)) {
                 throw new InventoryException("IDEMPOTENCY_CONFLICT",
                         "requestId " + requestId + " already used with a different payload");
             }
@@ -140,6 +148,17 @@ public class InventoryService {
         stockMovementRepository.save(movement);
 
         return buildReserveResponse(reservation);
+    }
+
+    private void lockRequestId(String requestId) {
+        jdbcTemplate.execute((ConnectionCallback<Void>) connection -> {
+            try (var statement = connection.prepareStatement(
+                    "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")) {
+                statement.setString(1, requestId);
+                statement.execute();
+            }
+            return null;
+        });
     }
 
     @Transactional

@@ -105,8 +105,11 @@ public class TelemetryServiceImpl extends TelemetryServiceGrpc.TelemetryServiceI
 
             @Override
             public void onNext(TelemetryReading r) {
-                if (sim.exists(r.getMachineId())) ok++;
-                else bad++;
+                if (!isValid(r) || !sim.publish(r)) {
+                    bad++;
+                    return;
+                }
+                ok++;
             }
 
             @Override
@@ -124,6 +127,19 @@ public class TelemetryServiceImpl extends TelemetryServiceGrpc.TelemetryServiceI
                 out.onCompleted();
             }
         };
+    }
+
+    private static boolean isValid(TelemetryReading reading) {
+        return !reading.getMachineId().isBlank()
+                && reading.getTimestampEpochMs() > 0
+                && Double.isFinite(reading.getTemperatureC())
+                && reading.getTemperatureC() >= -273.15
+                && Double.isFinite(reading.getVibrationMmS())
+                && reading.getVibrationMmS() >= 0
+                && Double.isFinite(reading.getPressureBar())
+                && reading.getPressureBar() >= 0
+                && Double.isFinite(reading.getEnergyKw())
+                && reading.getEnergyKw() >= 0;
     }
 
     @Override

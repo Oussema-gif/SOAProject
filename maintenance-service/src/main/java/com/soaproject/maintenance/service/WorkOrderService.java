@@ -22,6 +22,7 @@ import com.soaproject.maintenance.repository.TechnicianRepository;
 import com.soaproject.maintenance.repository.UserRepository;
 import com.soaproject.maintenance.repository.WorkOrderRepository;
 import com.soaproject.maintenance.repository.WorkOrderReservationRepository;
+import com.soaproject.maintenance.util.PageRequestValidator;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -75,6 +76,7 @@ public class WorkOrderService {
                                         UUID technicianId,
                                         int page,
                                         int size) {
+        PageRequestValidator.validate(page, size);
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by(Sort.Direction.DESC, "createdAt"));
         return workOrderRepository.findAll(filterBy(status, machineCode, technicianId), pageable)

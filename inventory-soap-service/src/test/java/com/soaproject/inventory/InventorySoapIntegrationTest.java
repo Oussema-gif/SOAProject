@@ -186,6 +186,24 @@ class InventorySoapIntegrationTest {
     }
 
     @Test
+    void reservePartSameRequestDifferentWorkOrderFaults() {
+        client.sendRequest(withPayload(req("reservePartRequest",
+                        "<inv:requestId>req-work-order</inv:requestId>" +
+                        "<inv:partId>PART-001</inv:partId>" +
+                        "<inv:quantity>1</inv:quantity>" +
+                        "<inv:workOrderId>wo-original</inv:workOrderId>")))
+                .andExpect(noFault());
+
+        client.sendRequest(withPayload(req("reservePartRequest",
+                        "<inv:requestId>req-work-order</inv:requestId>" +
+                        "<inv:partId>PART-001</inv:partId>" +
+                        "<inv:quantity>1</inv:quantity>" +
+                        "<inv:workOrderId>wo-different</inv:workOrderId>")))
+                .andExpect(clientOrSenderFault())
+                .andExpect(xpath("//*[local-name()='code']/text()").evaluatesTo("IDEMPOTENCY_CONFLICT"));
+    }
+
+    @Test
     void reservePartZeroQuantityFaults() {
         client.sendRequest(withPayload(req("reservePartRequest",
                         "<inv:requestId>req-zero</inv:requestId>" +
