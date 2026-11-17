@@ -1,128 +1,142 @@
 # SOA Project
-
 ### Industrial Monitoring & Predictive Maintenance System
 
-A Service-Oriented Architecture (SOA) academic project demonstrating the
-integration of REST, SOAP, and gRPC technologies into a unified
-industrial monitoring and maintenance management platform.
+A service-oriented industrial monitoring platform built with **Java 21, Spring Boot, REST, SOAP, gRPC, and JavaFX**.
 
-The system monitors industrial machines, processes telemetry readings,
-detects abnormal conditions, generates maintenance alerts, and
-coordinates spare-part availability.
+SOA Project demonstrates how heterogeneous services can collaborate within a distributed enterprise application to monitor industrial machines, process telemetry, detect abnormal operating conditions, manage maintenance alerts, and coordinate spare-part availability.
 
-------------------------------------------------------------------------
+---
 
-## 1. System Architecture
+## Overview
 
-The platform consists of four main components:
+Industrial environments require reliable monitoring and coordinated maintenance operations. This project addresses these requirements through a distributed architecture built around independent services communicating through different enterprise integration protocols.
 
-  -----------------------------------------------------------------------
-  Component               Technology              Responsibility
-  ----------------------- ----------------------- -----------------------
-  Maintenance Service     Java, Spring Boot, REST Machines, alerts, work
-                                                  orders, authentication
+The platform brings together three backend services and a JavaFX desktop application, demonstrating interoperability between REST, SOAP, and gRPC.
 
-  Inventory Service       Java, SOAP              Spare parts, stock
-                                                  management,
-                                                  reservations
+### Key Capabilities
 
-  Telemetry Service       gRPC                    Machine telemetry and
-                                                  real-time readings
+- Industrial machine management.
+- Machine telemetry ingestion.
+- Abnormal-condition detection and alert processing.
+- Maintenance work-order management.
+- Work-order lifecycle and state transitions.
+- Spare-part availability verification.
+- Inventory and stock reservation operations.
+- JWT-based authentication and role-based access control.
+- Integration of REST, SOAP, and gRPC services.
 
-  Desktop Client          JavaFX                  User interface and
-                                                  service orchestration
-  -----------------------------------------------------------------------
+---
 
-### Architecture Overview
+## Architecture
 
-``` text
-                 JAVA FX DESKTOP CLIENT
-                          |
-             +------------+------------+
-             |            |            |
-            REST         SOAP         gRPC
-             |            |            |
-       +-----------+ +-----------+ +-----------+
-       |Maintenance| | Inventory | | Telemetry |
-       |  Service  | |  Service  | |  Service  |
-       +-----------+ +-----------+ +-----------+
-             |            |
-             +-----+------+
-                   |
-             +-----------+
-             | PostgreSQL|
-             | Database  |
-             +-----------+
+The system follows a service-oriented architecture in which each service has a clearly defined responsibility and communication contract.
+
+### High-Level Architecture
+
+```text
+                  JAVA FX DESKTOP CLIENT
+                           |
+             +-------------+-------------+
+             |             |             |
+            REST          SOAP          gRPC
+             |             |             |
+      +-------------+ +-----------+ +-------------+
+      | Maintenance | | Inventory | |  Telemetry  |
+      |   Service   | |  Service  | |   Service   |
+      +-------------+ +-----------+ +-------------+
+             |             |
+             +------+------+
+                    |
+              +-----------+
+              | PostgreSQL|
+              |  Database |
+              +-----------+
 ```
+
+### System Components
+
+| Component | Technology | Responsibility |
+|---|---|---|
+| Maintenance Service | Java, Spring Boot, REST | Machines, authentication, alerts, and work orders |
+| Inventory Service | Java, SOAP | Spare parts, stock management, and reservations |
+| Telemetry Service | Java, gRPC | Machine telemetry and real-time readings |
+| Desktop Client | JavaFX | User interface and service integration |
+| Database | PostgreSQL | Persistent data storage |
 
 ### Communication Protocols
 
-**REST** - JWT authentication. - Machine management. - Alert
-management. - Maintenance work orders. - Work-order state transitions.
+**REST API**
 
-**SOAP** - Spare-part information. - Inventory availability checks. -
-Stock management. - Spare-part reservations.
+Used for maintenance operations and application management.
 
-**gRPC** - Machine telemetry communication. - Structured telemetry
-messages. - Integration with the monitoring workflow.
+- JWT authentication.
+- Machine management.
+- Alert management.
+- Maintenance work orders.
+- Work-order state transitions.
 
-------------------------------------------------------------------------
+**SOAP Web Services**
 
-## 2. Technologies Used
+Used for inventory-related enterprise operations.
 
-### Backend
+- Spare-part information.
+- Inventory availability checks.
+- Stock management.
+- Spare-part reservations.
 
--   Java 21
--   Spring Boot 3
--   Spring Security
--   JWT Authentication
--   REST API
--   SOAP Web Services
--   gRPC
--   Maven
+**gRPC**
 
-### Database
+Used for telemetry communication.
 
--   PostgreSQL
--   SQL
--   Database schema isolation
--   Database migrations
+- Structured telemetry messages.
+- Machine readings transmission.
+- Integration with the monitoring workflow.
 
-### Desktop Application
+---
 
--   JavaFX
--   Java
--   REST Client
--   SOAP Client
--   gRPC Client
+## Technology Stack
 
-### Development & Infrastructure
+| Category | Technologies |
+|---|---|
+| Programming Language | Java 21 |
+| Backend Framework | Spring Boot 3 |
+| Security | Spring Security, JWT |
+| Communication | REST, SOAP, gRPC |
+| Desktop Application | JavaFX |
+| Database | PostgreSQL |
+| Build Management | Maven |
+| Database Migrations | SQL, configured migration tooling |
+| API Documentation | Swagger / OpenAPI |
+| Testing | JUnit 5, Spring Boot Test, Testcontainers |
+| Infrastructure | Docker, Docker Compose |
+| Version Control | Git, GitHub |
 
--   Docker
--   Docker Compose
--   Git
--   GitHub
--   JUnit 5
--   Spring Boot Test
--   Testcontainers
--   Swagger / OpenAPI
+---
 
-------------------------------------------------------------------------
+## Project Structure
 
-## 3. Project Structure
-
-``` text
+```text
 soa-project-backend/
+│
 ├── maintenance-service/
+│   └── Spring Boot REST application
+│
 ├── inventory-soap-service/
+│   └── SOAP inventory application
+│
 ├── telemetry-grpc-service/
+│   └── gRPC telemetry application
+│
 ├── desktop-client/
+│   └── JavaFX desktop application
+│
 ├── docs/
 │   ├── integration-contract.md
 │   ├── openapi.yaml
 │   ├── soap-examples.xml
 │   ├── postman-collection.json
 │   └── demo-workflow.sh
+│
 ├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
@@ -130,19 +144,23 @@ soa-project-backend/
 └── README.md
 ```
 
-------------------------------------------------------------------------
+---
 
-## 4. Prerequisites
+## Getting Started
 
--   Java Development Kit 21
--   Apache Maven
--   Docker
--   Docker Compose
--   Git
+### Prerequisites
+
+Make sure the following tools are installed:
+
+- JDK 21
+- Apache Maven
+- Docker
+- Docker Compose
+- Git
 
 Verify your environment:
 
-``` bash
+```bash
 java -version
 mvn -version
 docker --version
@@ -150,221 +168,224 @@ docker compose version
 git --version
 ```
 
-------------------------------------------------------------------------
+### 1. Clone the Repository
 
-## 5. Installation & Configuration
-
-### Step 1: Clone the Repository
-
-``` bash
+```bash
 git clone YOUR_REPOSITORY_URL
 cd soa-project-backend
 ```
 
-### Step 2: Configure Environment Variables
+### 2. Configure Environment Variables
 
-``` bash
+Create your local environment configuration:
+
+```bash
 cp .env.example .env
 ```
 
-Configure database credentials and application secrets.
+Configure the required database credentials, application secrets, and service configuration.
 
-Generate secure secrets:
+Generate secure secrets when required:
 
-``` bash
+```bash
 openssl rand -base64 32
 openssl rand -hex 32
 ```
 
-Use the generated values for the corresponding JWT and API-key
-environment variables.
+Assign the generated values to the corresponding environment variables.
 
-**Important:** Never commit your `.env` file or expose production
-secrets.
+**Security notice:** Never commit `.env` files, database credentials, JWT secrets, or API keys to version control.
 
-### Step 3: Start PostgreSQL
+### 3. Start PostgreSQL
 
-``` bash
+Start the database using Docker Compose:
+
+```bash
 docker compose up -d
+```
+
+Check the container status:
+
+```bash
 docker compose ps
 ```
 
-Wait until the database reports a healthy status.
+Wait until PostgreSQL reports a healthy status before starting the backend services.
 
-------------------------------------------------------------------------
+---
 
-## 6. Running the Backend
+## Running the Application
 
-Run each backend service in a separate terminal.
+Each backend service runs independently.
 
-### Maintenance REST Service
+### Maintenance Service — REST
 
-``` bash
+```bash
 set -a
 source .env
 set +a
+
 mvn -pl maintenance-service spring-boot:run
 ```
 
-Port: `8081`
+Default port: `8081`
 
-### Inventory SOAP Service
+### Inventory Service — SOAP
 
-``` bash
+```bash
 set -a
 source .env
 set +a
+
 mvn -pl inventory-soap-service spring-boot:run
 ```
 
-Port: `8082`
+Default port: `8082`
 
-### Telemetry gRPC Service
+### Telemetry Service — gRPC
 
-Start the telemetry service using its configured Maven module and
-application entry point.
+The telemetry service uses its configured Maven module and application entry point.
 
-Default configured gRPC port: `9090`.
+Default gRPC port: `9090`.
 
-Refer to the module configuration for the exact startup command.
+Refer to the telemetry module configuration for its exact startup command.
 
-------------------------------------------------------------------------
+### JavaFX Desktop Client
 
-## 7. Running the JavaFX Desktop Application
-
-``` bash
+```bash
 set -a
 source .env
 set +a
+
 mvn -f desktop-client/pom.xml clean javafx:run
 ```
 
-The desktop application communicates with the backend services through
-their respective protocols.
+The desktop client integrates with the backend through REST, SOAP, and gRPC.
 
-------------------------------------------------------------------------
+---
 
-## 8. Testing
+## Testing
 
-Run the complete Maven verification lifecycle:
+Run the complete Maven verification lifecycle from the project root:
 
-``` bash
+```bash
 mvn clean verify
 ```
 
-The test suite covers:
+The test suite covers the configured application components, including:
 
--   REST API endpoints.
--   Authentication and authorization.
--   Machine management.
--   Alert processing.
--   Work-order management.
--   SOAP service operations.
--   Inventory management.
--   Database integration.
+- REST API endpoints.
+- Authentication and authorization.
+- Machine management.
+- Alert processing.
+- Work-order management.
+- SOAP service operations.
+- Inventory management.
+- Database integration.
 
-Integration tests use Testcontainers where configured.
+Integration testing uses Testcontainers where configured.
 
-------------------------------------------------------------------------
+---
 
-## 9. End-to-End Demonstration
+## End-to-End Demonstration
 
-The project includes an orchestration script demonstrating the
-maintenance workflow.
+The project includes a demonstration script for the maintenance integration workflow.
 
-``` bash
+Run:
+
+```bash
 set -a
 source .env
 set +a
+
 bash docs/demo-workflow.sh
 ```
 
 ### Demonstration Workflow
 
-1.  Authenticate with the REST service.
-2.  Submit or retrieve machine-related information.
-3.  Process maintenance alerts.
-4.  Check spare-part availability through SOAP.
-5.  Execute the maintenance workflow.
-6.  Apply work-order state transitions.
-7.  Verify the resulting system state.
+1. Authenticate with the Maintenance REST Service.
+2. Submit or retrieve machine-related information.
+3. Process maintenance alerts.
+4. Check spare-part availability through the Inventory SOAP Service.
+5. Execute the maintenance workflow.
+6. Apply work-order state transitions.
+7. Verify the resulting application state.
 
-Expected result:
+Expected successful execution:
 
-``` text
+```text
 Workflow completed successfully
 ```
 
-------------------------------------------------------------------------
+---
 
-## 10. API Documentation
+## API & Integration Documentation
 
-The `docs/` directory contains the integration documentation.
+The `docs/` directory contains the project's integration resources.
 
-  File                      Description
-  ------------------------- ---------------------------------------
-  integration-contract.md   Frontend/backend integration contract
-  openapi.yaml              REST API specification
-  soap-examples.xml         SOAP request and response examples
-  postman-collection.json   Postman API collection
-  demo-workflow.sh          End-to-end workflow demonstration
+| File | Description |
+|---|---|
+| `integration-contract.md` | Frontend/backend integration contract |
+| `openapi.yaml` | REST API specification |
+| `soap-examples.xml` | SOAP request and response examples |
+| `postman-collection.json` | Postman API collection |
+| `demo-workflow.sh` | End-to-end workflow demonstration |
 
-------------------------------------------------------------------------
+---
 
-## 11. Security
+## Security
 
-The project demonstrates:
+Security is integrated into the application architecture through:
 
--   JWT-based authentication.
--   Role-based access control.
--   API-key protection for inventory operations.
--   Environment-based secret configuration.
--   Separation of application responsibilities.
--   Protected backend communication.
+- JWT-based authentication.
+- Role-based access control.
+- API-key protection for inventory operations.
+- Environment-based secret configuration.
+- Separation of service responsibilities.
+- Protected backend operations.
 
-Credentials and sensitive configuration values should remain outside
-version control.
+Sensitive configuration and credentials must remain outside version control.
 
-------------------------------------------------------------------------
+---
 
-## 12. Database Architecture
+## Database Architecture
 
-PostgreSQL provides persistent storage for the backend.
+PostgreSQL provides persistent storage for the backend components.
 
-The maintenance and inventory components use separate database schemas
-to maintain logical data separation.
+The Maintenance and Inventory services use separate database schemas to maintain logical data separation.
 
-Database configuration is managed through environment variables and
-Docker Compose.
+Database configuration is managed through environment variables and Docker Compose.
 
-------------------------------------------------------------------------
+---
 
-## 13. Academic Project Objectives
+## Academic Objectives
 
-This project demonstrates practical implementation of:
+This project demonstrates practical implementation of core Service-Oriented Architecture concepts:
 
--   Service independence.
--   Loose coupling.
--   Interoperability.
--   Heterogeneous communication protocols.
--   Service orchestration.
--   Distributed application architecture.
--   Database integration.
--   Secure service communication.
--   Enterprise application integration.
+- Service independence.
+- Loose coupling.
+- Service interoperability.
+- Heterogeneous communication protocols.
+- Distributed application architecture.
+- Enterprise application integration.
+- Service orchestration.
+- Database integration.
+- Secure service communication.
 
-------------------------------------------------------------------------
+---
 
-## 14. Authors
+## Authors
 
-**Oussema Rahmouni**\
+**Oussema Rahmouni**
+
 Backend Engineering & Enterprise Services
 
-**Houssem Mosbeh**\
+**Houssem Mosbeh**
+
 Desktop Application & Frontend Integration
 
-------------------------------------------------------------------------
+---
 
-## 15. License
+## License
 
-This project was developed for academic and educational purposes.
+Developed for academic and educational purposes.
