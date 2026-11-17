@@ -25,6 +25,10 @@ The application has three backend services and a JavaFX desktop client:
 | Desktop Client | JavaFX | User interface and service integration | — |
 | Database | PostgreSQL | Backend persistence | `localhost:${DB_PORT}` |
 
+The standard desktop launch opens the authenticated, live operations interface.
+The UI's demo mode is an optional developer simulation, not the default
+experience.
+
 ### Technology Stack
 
 | Category | Technologies |
@@ -115,8 +119,9 @@ ADMIN_USERNAME=<your-login-name>
 ADMIN_PASSWORD=<your-strong-password>
 ```
 
-`JWT_SECRET`, `ADMIN_USERNAME`, and `ADMIN_PASSWORD` are required to start the
-REST service and log in. Generate a JWT secret with OpenSSL on Linux:
+`JWT_SECRET` and `ADMIN_PASSWORD` must be set to start the REST service.
+`ADMIN_USERNAME` selects the login name and defaults to `admin` if omitted.
+Generate a JWT secret with OpenSSL on Linux:
 
 ```bash
 openssl rand -base64 32
@@ -133,10 +138,24 @@ $rng.Dispose()
 ```
 
 Set a private `INVENTORY_API_KEY` as well. The SOAP service and the desktop
-client must use the same API key; the current desktop client has its own
-configured key, so a mismatch causes SOAP requests to be rejected. Do not put
-key material in this README or commit it. The `.env` file is local and must
-remain untracked.
+client read this variable from the environment, and both must use the same
+value or SOAP requests will be rejected. Do not put key material in this
+README or commit it. The `.env` file is local and must remain untracked.
+
+### Clean install and verify
+
+From the repository root, build, test, and install both independent Maven
+reactors:
+
+```bash
+mvn clean install
+mvn -f frontend/pom.xml clean install
+```
+
+The root reactor contains the REST and SOAP services. The frontend reactor
+contains the telemetry contract, gRPC service, and desktop client; installing
+it makes the shared contract available to the standalone `-pl` run commands
+below. The `install` lifecycle runs the tests as well.
 
 ### 2. Start or reuse PostgreSQL
 
@@ -169,10 +188,10 @@ instead of trying to create a second container with the same name.
 ### 3. Load `.env` and start the backend services
 
 Start each service in its own terminal from the repository root. Load `.env`
-again in every terminal; environment variables set in one terminal are not
-automatically available in another.
+again in every backend or desktop terminal that needs its values; environment
+variables set in one terminal are not automatically available in another.
 
-**Linux (Bash), in each backend terminal**
+**Linux (Bash), in each backend or desktop terminal**
 
 ```bash
 set -a
@@ -180,7 +199,7 @@ source ./.env
 set +a
 ```
 
-**Windows (PowerShell), in each backend terminal**
+**Windows (PowerShell), in each backend or desktop terminal**
 
 ```powershell
 Get-Content .env | ForEach-Object {
@@ -210,14 +229,7 @@ mvn -pl inventory-soap-service spring-boot:run
 
 **Telemetry gRPC service** — port `9090`
 
-The frontend reactor must be installed once so its local telemetry contract is
-available to the service and desktop modules:
-
-```bash
-mvn -f frontend/pom.xml clean install
-```
-
-Then start telemetry in its own terminal:
+Start telemetry in its own terminal:
 
 ```bash
 mvn -f frontend/pom.xml -pl telemetry-service exec:java
@@ -225,17 +237,21 @@ mvn -f frontend/pom.xml -pl telemetry-service exec:java
 
 ### 4. Launch the JavaFX client
 
-For the live client, start the REST, SOAP, and gRPC services first, then run
-the JavaFX application from the repository root:
+Start the REST, SOAP, and gRPC services first. In a separate terminal, load
+`.env` using the Bash or PowerShell commands above so the client receives
+`INVENTORY_API_KEY`, then launch the JavaFX application from the repository
+root:
 
 ```bash
 mvn -f frontend/pom.xml -pl desktop-client org.openjfx:javafx-maven-plugin:0.0.8:run
 ```
 
-Log in with the `ADMIN_USERNAME` and `ADMIN_PASSWORD` configured in `.env`.
-The client uses REST on port `8081`, SOAP on `8082`, and gRPC on `9090`.
+Log in with the `ADMIN_USERNAME` (default `admin`) and `ADMIN_PASSWORD`
+configured in `.env`. The client uses REST on port `8081`, SOAP on `8082`, and
+gRPC on `9090`.
 
-To launch the UI in its simulated demo mode without starting any backend or
+The normal launch is the authenticated, live operations UI. To preview the
+interface in its simulated developer demo mode without starting backend or
 database services:
 
 **Linux (Bash)**
@@ -254,18 +270,6 @@ Remove-Item Env:KT_DEMO
 
 The desktop client also supports demo mode with the `--demo` argument when
 launched directly.
-
-### Build and test
-
-Run both Maven reactors from the repository root:
-
-```bash
-mvn clean verify
-mvn -f frontend/pom.xml clean verify
-```
-
-The root command verifies the REST and SOAP backend reactor; the second
-verifies the frontend reactor.
 
 `docs/demo-workflow.sh` is a Bash script for the REST/SOAP workflow and requires
 the backend services, PostgreSQL, and the relevant environment variables:
