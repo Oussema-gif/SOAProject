@@ -7,6 +7,7 @@ import com.soa.desktop.ui.motion.Motion;
 import com.soa.desktop.ui.topology.TrafficEventBus;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -24,21 +25,31 @@ import java.util.UUID;
 
 public final class InventoryView extends VBox {
 
-    public record InventoryRow(String id, String name, String stock, String status) { }
+    private static final PseudoClass CRITICAL = PseudoClass.getPseudoClass("critical");
+    private static final PseudoClass WARNING = PseudoClass.getPseudoClass("warning");
+    private static final PseudoClass SUCCESS = PseudoClass.getPseudoClass("success");
+
+    public record InventoryRow(String id, String sku, String name, String stock, String minimum, String unit, String status) { }
 
     private final TableView<InventoryRow> table = new TableView<>();
-    private final Label statusLabel = new Label("Check spare-part availability via SOAP.");
+    private final Label statusLabel = new Label("Look up a part ID; the SOAP contract does not expose a parts-list operation.");
     private final Label resultLabel = new Label("");
     private final InventorySoapClient soap;
     private final boolean demo;
-    private final TextField partId = new TextField("PART-001");
+    private final TextField partId = new TextField();
     private final TextField quantity = new TextField("1");
     private final TextField workOrder = new TextField();
+    private final Button check = new Button("CHECK STOCK");
+    private final Button reserve = new Button("RESERVE PART");
     private boolean available;
     private String verifiedPartId;
     private int verifiedQuantity;
 
     public InventoryView(InventorySoapClient soap, boolean demo) {
+        this(soap, demo, null);
+    }
+
+    public InventoryView(InventorySoapClient soap, boolean demo, String initialPartId) {
         this.soap = soap;
         this.demo = demo;
         getStyleClass().add("page");
@@ -60,18 +71,18 @@ public final class InventoryView extends VBox {
         HBox fields = new HBox(10);
         fields.setAlignment(Pos.CENTER_LEFT);
         partId.setPromptText("Part ID");
+        if (initialPartId != null) partId.setText(initialPartId);
         quantity.setPromptText("Qty");
         quantity.setPrefWidth(90);
         workOrder.setPromptText("Work order ID");
-        partId.textProperty().addListener((observable, oldValue, newValue) -> available = false);
-        quantity.textProperty().addListener((observable, oldValue, newValue) -> available = false);
+        partId.textProperty().addListener((observable, oldValue, newValue) -> invalidateStockCheck());
+        quantity.textProperty().addListener((observable, oldValue, newValue) -> invalidateStockCheck());
         HBox.setHgrow(workOrder, Priority.ALWAYS);
-        Button check = new Button("CHECK STOCK");
         check.getStyleClass().add("primary-button");
         check.setOnAction(event -> checkStock());
-        Button reserve = new Button("RESERVE PART");
         reserve.setOnAction(event -> reservePart());
         fields.getChildren().addAll(partId, quantity, workOrder, check, reserve);
+        reserve.setDisable(true);
         resultLabel.getStyleClass().add("mono-muted");
         controls.getChildren().addAll(formTitle, fields, resultLabel);
 
@@ -84,30 +95,40 @@ public final class InventoryView extends VBox {
             });
             return row;
         });
-        TableColumn<InventoryRow, String> id = column("PART ID", InventoryRow::id, 160);
-        TableColumn<InventoryRow, String> name = column("COMPONENT", InventoryRow::name, 280);
-        TableColumn<InventoryRow, String> stock = column("AVAILABLE STOCK", InventoryRow::stock, 160);
-        TableColumn<InventoryRow, String> state = column("AVAILABILITY", InventoryRow::status, 160);
-        table.getColumns().addAll(id, name, stock, state);
+        TableColumn<InventoryRow, String> id = column("PART ID", InventoryRow::id, 130);
+        TableColumn<InventoryRow, String> sku = column("SKU", InventoryRow::sku, 150);
+        TableColumn<InventoryRow, String> name = column("COMPONENT", InventoryRow::name, 240);
+        TableColumn<InventoryRow, String> stock = column("ON HAND", InventoryRow::stock, 100);
+        TableColumn<InventoryRow, String> minimum = column("MINIMUM", InventoryRow::minimum, 100);
+        TableColumn<InventoryRow, String> unit = column("UNIT", InventoryRow::unit, 80);
+        TableColumn<InventoryRow, String> state = column("AVAILABILITY", InventoryRow::status, 140);
+        state.setCellFactory(column -> new javafx.scene.control.TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                pseudoClassStateChanged(CRITICAL, !empty && "INSUFFICIENT".equalsIgnoreCase(item));
+                pseudoClassStateChanged(WARNING, !empty && "LOW STOCK".equalsIgnoreCase(item));
+                pseudoClassStateChanged(SUCCESS, !empty && "IN STOCK".equalsIgnoreCase(item));
+                setText(empty ? null : item);
+            }
+        });
+        table.getColumns().addAll(id, sku, name, stock, minimum, unit, state);
+        table.setPlaceholder(new Label("No part loaded · enter a part ID and check its live stock."));
         VBox.setVgrow(table, Priority.ALWAYS);
         getChildren().addAll(header, controls, table);
 
         if (demo) {
             table.getItems().setAll(
-                    new InventoryRow("PART-001", "Thermal sensor", "42", "IN STOCK"),
-                    new InventoryRow("PART-008", "Vibration probe", "08", "LOW STOCK"),
-                    new InventoryRow("PART-012", "Pressure transducer", "19", "IN STOCK"));
+                    new InventoryRow("PART-001", "DEMO-SKU-001", "Industrial bearing", "42", "10", "PCS", "IN STOCK"));
             available = true;
+            reserve.setDisable(false);
+            if (partId.getText().isBlank()) partId.setText("PART-001");
             verifiedPartId = partId.getText().trim();
             verifiedQuantity = Integer.parseInt(quantity.getText().trim());
-            resultLabel.setText("DEMO STOCK · PART-001 · 42 available");
-            statusLabel.setText("DEMO MODE · SOAP availability and reservation flow simulated");
+            resultLabel.setText("DEMO STOCK · PART-001 · available 42 · minimum 10");
+            statusLabel.setText("DEMO MODE · stock and reservation feedback are simulated");
         } else {
-            if (soap == null) {
-                statusLabel.setText("SOAP client initializing; use Check Stock when the service link is ready.");
-            } else {
-                checkStock();
-            }
+            if (initialPartId != null) checkStock();
         }
     }
 
@@ -129,11 +150,13 @@ public final class InventoryView extends VBox {
         } catch (NumberFormatException exception) {
             resultLabel.setText("Enter a quantity greater than zero.");
             available = false;
+            reserve.setDisable(true);
             return;
         }
         if (id.isEmpty()) {
             resultLabel.setText("Enter a part ID.");
             available = false;
+            reserve.setDisable(true);
             return;
         }
         if (demo) {
@@ -141,6 +164,7 @@ public final class InventoryView extends VBox {
             available = true;
             verifiedPartId = id;
             verifiedQuantity = requested;
+            reserve.setDisable(false);
             TrafficEventBus.publish("SOAP", "RESPONSE", "SUCCESS");
             resultLabel.setText("DEMO STOCK · " + id + " · 42 available · requested " + requested);
             return;
@@ -148,29 +172,43 @@ public final class InventoryView extends VBox {
         if (soap == null) {
             resultLabel.setText("SOAP client is not available.");
             available = false;
+            reserve.setDisable(true);
             return;
         }
-        resultLabel.setText("Checking stock via SOAP…");
-        soap.checkStock(id, requested).whenComplete((response, error) -> Platform.runLater(() -> {
+        setBusy(true);
+        resultLabel.setText("Reading part details and checking stock via authenticated SOAP…");
+        soap.getSparePart(id).thenCompose(part -> soap.checkStock(id, requested)
+                .thenApply(stock -> new StockResult(part, stock)))
+                .whenComplete((response, error) -> Platform.runLater(() -> {
+            setBusy(false);
             if (error != null) {
                 available = false;
                 resultLabel.setText("Stock check failed · " + error.getMessage());
-                statusLabel.setText("SOAP service unavailable");
+                statusLabel.setText("Authenticated SOAP request failed");
                 return;
             }
             displayStock(id, requested, response);
         }));
     }
 
-    private void displayStock(String id, int requested, CheckStockResponse response) {
-        available = response.isAvailable();
+    private record StockResult(com.soa.desktop.client.soap.generated.GetSparePartResponse part,
+                               CheckStockResponse stock) { }
+
+    private void displayStock(String id, int requested, StockResult response) {
+        CheckStockResponse stock = response.stock();
+        var part = response.part();
+        available = stock.isAvailable();
         verifiedPartId = available ? id : null;
         verifiedQuantity = available ? requested : 0;
-        String state = available ? "IN STOCK" : "LOW STOCK";
-        table.getItems().setAll(new InventoryRow(id, labelFor(id), String.valueOf(response.getAvailableQuantity()), state));
-        resultLabel.setText((available ? "AVAILABLE" : "INSUFFICIENT STOCK") + " · "
-                + response.getAvailableQuantity() + " units available");
-        statusLabel.setText("Stock level fetched from Inventory SOAP service");
+        reserve.setDisable(!available);
+        String state = !available ? "INSUFFICIENT" : part.getAvailableQuantity() <= part.getMinimumStockLevel()
+                ? "LOW STOCK" : "IN STOCK";
+        table.getItems().setAll(new InventoryRow(part.getPartId(), part.getSku(), part.getName(),
+                String.valueOf(part.getAvailableQuantity()), String.valueOf(part.getMinimumStockLevel()),
+                part.getUnit(), state));
+        resultLabel.setText("SOAP RESPONSE · " + stock.getMessage() + " · requested " + requested
+                + " · available " + stock.getAvailableQuantity());
+        statusLabel.setText("Part record and stock availability confirmed by Inventory SOAP service");
     }
 
     private void reservePart() {
@@ -198,31 +236,49 @@ public final class InventoryView extends VBox {
                     + " · " + id + " × " + requested + " · linked to " + orderId);
             TrafficEventBus.publish("SOAP", "RESPONSE", "SUCCESS");
             available = false;
+            reserve.setDisable(true);
+            reserve.setDisable(true);
             return;
         }
         if (soap == null) {
             resultLabel.setText("SOAP client is not available.");
             return;
         }
+        setBusy(true);
         resultLabel.setText("Reserving " + id + "…");
         soap.reservePart(id, requested, UUID.randomUUID().toString(), orderId)
                 .whenComplete((reservation, error) -> Platform.runLater(() -> {
+                    setBusy(false);
                     if (error != null) {
                         resultLabel.setText("Reservation failed · " + error.getMessage());
                         return;
                     }
-                    resultLabel.setText("Reserved · " + reservation.getReservationId() + " · linked to " + orderId);
+                    if (reservation.getReservationId() == null || reservation.getReservationId().isBlank()) {
+                        resultLabel.setText("SOAP returned no reservation ID · reservation is unconfirmed");
+                        return;
+                    }
+                    resultLabel.setText("SOAP RESPONSE · " + reservation.getStatus() + " · "
+                            + reservation.getReservationId() + " · qty " + reservation.getReservedQuantity()
+                            + " · " + reservation.getTimestamp() + " · work order " + orderId);
                     statusLabel.setText("Reservation confirmed by Inventory SOAP service");
                     available = false;
+                    reserve.setDisable(true);
                 }));
     }
 
-    private static String labelFor(String partId) {
-        return switch (partId) {
-            case "PART-001" -> "Thermal sensor";
-            case "PART-008" -> "Vibration probe";
-            case "PART-012" -> "Pressure transducer";
-            default -> "Industrial spare part";
-        };
+    private void invalidateStockCheck() {
+        available = false;
+        verifiedPartId = null;
+        verifiedQuantity = 0;
+        reserve.setDisable(true);
+        if (!demo) table.getItems().clear();
+    }
+
+    private void setBusy(boolean busy) {
+        check.setDisable(busy);
+        reserve.setDisable(busy || !available);
+        partId.setDisable(busy);
+        quantity.setDisable(busy);
+        workOrder.setDisable(busy);
     }
 }
