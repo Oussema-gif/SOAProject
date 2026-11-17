@@ -678,20 +678,24 @@
 
 .topology-connection {
     -fx-fill: transparent;
-    -fx-stroke: rgba(126, 141, 164, 0.33);
-    -fx-stroke-width: 1px;
+    -fx-stroke: rgba(126, 141, 164, 0.42);
+    -fx-stroke-width: 1.5px;
 }
 
 .connection-rest {
-    -fx-stroke: rgba(0, 240, 255, 0.45);
+    -fx-stroke: rgba(0, 229, 242, 0.62);
 }
 
 .connection-soap {
-    -fx-stroke: rgba(0, 230, 118, 0.38);
+    -fx-stroke: rgba(0, 214, 143, 0.58);
 }
 
 .connection-grpc {
-    -fx-stroke: rgba(255, 234, 0, 0.32);
+    -fx-stroke: rgba(255, 181, 71, 0.58);
+}
+
+.connection-storage {
+    -fx-stroke: rgba(126, 141, 164, 0.52);
 }
 
 .topology-node {
@@ -730,18 +734,18 @@
 }
 
 .topology-index {
-    -fx-font-size: 8px;
+    -fx-font-size: 9px;
     -fx-text-fill: -kt-muted;
 }
 
 .topology-title {
     -fx-font-family: "Syne";
-    -fx-font-size: 13px;
+    -fx-font-size: 15px;
     -fx-font-weight: 700;
 }
 
 .topology-protocol {
-    -fx-font-size: 8px;
+    -fx-font-size: 9px;
     -fx-text-fill: -kt-accent;
 }
 
@@ -754,13 +758,13 @@
 }
 
 .topology-detail {
-    -fx-font-size: 8px;
+    -fx-font-size: 9px;
     -fx-text-fill: -kt-muted;
 }
 
 .topology-health {
     -fx-padding: 3 6;
-    -fx-font-size: 7px;
+    -fx-font-size: 8px;
 }
 
 .pulse-rest {

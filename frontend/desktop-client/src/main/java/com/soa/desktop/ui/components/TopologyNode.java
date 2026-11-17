@@ -23,10 +23,11 @@ public final class TopologyNode extends VBox {
         setPadding(new Insets(15));
         getStyleClass().add("topology-node");
         setMinWidth(140);
-        setPrefWidth(190);
-        setMaxWidth(190);
+        setPrefWidth(220);
+        setMaxWidth(220);
         setMinHeight(140);
-        setPrefHeight(140);
+        setPrefHeight(150);
+        setMaxHeight(150);
         setFocusTraversable(true);
         setAccessibleRole(javafx.scene.AccessibleRole.BUTTON);
         Label indexLabel = new Label(index);

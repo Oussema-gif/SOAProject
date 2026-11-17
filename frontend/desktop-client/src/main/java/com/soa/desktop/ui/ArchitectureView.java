@@ -36,7 +36,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class ArchitectureView extends VBox implements AutoCloseable {
 
-    private static final double NODE_HEIGHT = 140;
+    private static final double MAX_NODE_WIDTH = 220;
+    private static final double MIN_NODE_WIDTH = 140;
+    private static final double MAX_COLUMN_GAP = 140;
+    private static final double NODE_HEIGHT = 150;
     private static final double SERVICE_GAP = 20;
 
     private record Connection(Path path, TopologyNode from, TopologyNode to,
@@ -72,7 +75,7 @@ public final class ArchitectureView extends VBox implements AutoCloseable {
         eyebrow.getStyleClass().add("section-label");
         Label title = new Label("Architecture / Live Topology");
         title.getStyleClass().add("page-title");
-        Label detail = new Label("Observed service checks · PostgreSQL is reported indirectly, never assumed healthy.");
+        Label detail = new Label("Live service checks · telemetry updates continuously · persistence health is indirect.");
         detail.getStyleClass().add("body-muted");
         heading.getChildren().addAll(eyebrow, title, detail);
 
@@ -81,6 +84,8 @@ public final class ArchitectureView extends VBox implements AutoCloseable {
         routePane.setPrefWidth(780);
         routePane.setMinHeight(500);
         routePane.setPrefHeight(520);
+        routePane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        pulseLayer.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
         StackPane layers = new StackPane(routePane, pulseLayer);
         layers.getStyleClass().add("topology-frame");
         VBox.setVgrow(layers, javafx.scene.layout.Priority.ALWAYS);
@@ -88,9 +93,11 @@ public final class ArchitectureView extends VBox implements AutoCloseable {
         VBox legend = new VBox(6);
         Label legendTitle = new Label("FLOW LEGEND");
         legendTitle.getStyleClass().add("section-label");
-        Label legendText = new Label("REST / circular packet     SOAP / capsule packet     gRPC / compact packet     red pulse / failed call");
+        Label legendText = new Label("REST / circular packet     SOAP / capsule packet     gRPC / compact packet");
         legendText.getStyleClass().add("mono-muted");
-        legend.getChildren().addAll(legendTitle, legendText);
+        Label stateLegend = new Label("Green / normal or connected     Amber / loading or warning     Red / critical alert     Gray / disconnected");
+        stateLegend.getStyleClass().add("mono-muted");
+        legend.getChildren().addAll(legendTitle, legendText, stateLegend);
 
         VBox details = new VBox(7);
         details.getStyleClass().add("surface-card");
@@ -172,14 +179,21 @@ public final class ArchitectureView extends VBox implements AutoCloseable {
         double width = routePane.getWidth();
         if (width <= 0) return;
 
-        double nodeWidth = Math.min(190, Math.max(140, (width - 48) / 3));
-        double left = 12;
-        double middle = (width - nodeWidth) / 2;
-        double right = width - nodeWidth - 12;
+        double nodeWidth = Math.min(MAX_NODE_WIDTH, Math.max(MIN_NODE_WIDTH, (width - 48) / 3));
+        double columnGap = Math.min(MAX_COLUMN_GAP,
+                Math.max(12, (width - 3 * nodeWidth - 24) / 2));
+        double graphWidth = 3 * nodeWidth + 2 * columnGap;
+        double left = (width - graphWidth) / 2;
+        double middle = left + nodeWidth + columnGap;
+        double right = middle + nodeWidth + columnGap;
         double serviceHeight = NODE_HEIGHT * 3 + SERVICE_GAP * 2;
         double top = Math.max(12, (routePane.getHeight() - serviceHeight) / 2);
         double middleY = top + NODE_HEIGHT + SERVICE_GAP;
 
+        nodes.values().forEach(node -> {
+            node.setPrefWidth(nodeWidth);
+            node.setMaxWidth(nodeWidth);
+        });
         nodes.get("CLIENT").resizeRelocate(left, middleY, nodeWidth, NODE_HEIGHT);
         nodes.get("REST").resizeRelocate(middle, top, nodeWidth, NODE_HEIGHT);
         nodes.get("SOAP").resizeRelocate(middle, middleY, nodeWidth, NODE_HEIGHT);
