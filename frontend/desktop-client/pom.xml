@@ -101,7 +101,7 @@
                 </executions>
             </plugin>
 
-            <!-- 2. JavaFX run target: mvn -pl desktop-client javafx:run -->
+            <!-- JavaFX run target: mvn -f frontend/pom.xml -pl desktop-client org.openjfx:javafx-maven-plugin:0.0.8:run -->
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>

@@ -2,6 +2,7 @@ package com.soa.desktop.client.soap;
 
 import com.soa.desktop.client.soap.generated.*;
 import com.soa.desktop.util.ActivityLogger;
+import com.soa.desktop.ui.topology.TrafficEventBus;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,14 +46,17 @@ public class InventorySoapClient {
         }
         return CompletableFuture.supplyAsync(() -> {
             ActivityLogger.log("SOAP", "checkStock", "PENDING", "Part: " + partId);
+            TrafficEventBus.publish("SOAP", "REQUEST", "PENDING");
             try {
                 CheckStockRequest request = new CheckStockRequest();
                 request.setPartId(partId);
                 request.setQuantity(quantity);
                 CheckStockResponse resp = port.checkStock(request);
+                TrafficEventBus.publish("SOAP", "RESPONSE", "SUCCESS");
                 ActivityLogger.log("SOAP", "checkStock", "SUCCESS", "Available: " + resp.getAvailableQuantity());
                 return resp;
             } catch (Exception e) {
+                TrafficEventBus.publish("SOAP", "RESPONSE", "FAILED");
                 ActivityLogger.log("SOAP", "checkStock", "FAILED", e.getMessage());
                 throw e;
             }
@@ -65,6 +69,7 @@ public class InventorySoapClient {
         }
         return CompletableFuture.supplyAsync(() -> {
             ActivityLogger.log("SOAP", "reservePart", "PENDING", "Reserving " + partId);
+            TrafficEventBus.publish("SOAP", "REQUEST", "PENDING");
             try {
                 ReservePartRequest request = new ReservePartRequest();
                 request.setPartId(partId);
@@ -72,9 +77,11 @@ public class InventorySoapClient {
                 request.setRequestId(requestId);
                 request.setWorkOrderId(workOrderId);
                 ReservePartResponse resp = port.reservePart(request);
+                TrafficEventBus.publish("SOAP", "RESPONSE", "SUCCESS");
                 ActivityLogger.log("SOAP", "reservePart", "SUCCESS", "Res ID: " + resp.getReservationId());
                 return resp;
             } catch (Exception e) {
+                TrafficEventBus.publish("SOAP", "RESPONSE", "FAILED");
                 ActivityLogger.log("SOAP", "reservePart", "FAILED", e.getMessage());
                 throw e;
             }

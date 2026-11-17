@@ -1,0 +1,753 @@
+.root {
+    -kt-bg: #080A0F;
+    -kt-surface-1: #10141E;
+    -kt-surface-2: #181F2E;
+    -kt-text: #F8FAFC;
+    -kt-muted: #7E8DA4;
+    -kt-accent: #00F0FF;
+    -kt-success: #00E676;
+    -kt-warning: #FFEA00;
+    -kt-critical: #FF1744;
+    -kt-offline: #455A64;
+    -kt-hairline: rgba(126, 141, 164, 0.18);
+    -fx-background-color: -kt-bg;
+    -fx-font-family: "Syne";
+    -fx-text-fill: -kt-text;
+    -fx-accent: -kt-accent;
+    -fx-focus-color: -kt-accent;
+    -fx-faint-focus-color: rgba(0, 240, 255, 0.14);
+}
+
+.text-area {
+    -fx-control-inner-background: -kt-surface-2;
+    -fx-background-color: -kt-surface-2;
+    -fx-background-radius: 10px;
+    -fx-border-color: rgba(126, 141, 164, 0.25);
+    -fx-border-radius: 10px;
+    -fx-text-fill: -kt-text;
+    -fx-font-family: "JetBrains Mono";
+}
+
+.combo-box-popup .list-view, .list-view {
+    -fx-background-color: -kt-surface-1;
+    -fx-border-color: -kt-hairline;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+}
+
+.combo-box-popup .list-cell, .list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -kt-text;
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 10px;
+    -fx-padding: 9 12;
+}
+
+.combo-box-popup .list-cell:hover, .list-view .list-cell:hover,
+.combo-box-popup .list-cell:selected, .list-view .list-cell:selected {
+    -fx-background-color: -kt-surface-2;
+    -fx-text-fill: -kt-accent;
+}
+
+.label {
+    -fx-text-fill: -kt-text;
+}
+
+.page {
+    -fx-background-color: transparent;
+}
+
+.page-title {
+    -fx-font-family: "Syne";
+    -fx-font-size: 30px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -kt-text;
+}
+
+.section-label, .field-label, .eyebrow {
+    -fx-font-family: "Syne";
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -kt-muted;
+    -fx-letter-spacing: 1.5px;
+}
+
+.body-muted, .mono-muted {
+    -fx-text-fill: -kt-muted;
+}
+
+.mono-muted, .mono-text, .metric-value, .metric-unit, .topology-index, .topology-protocol,
+.topology-detail, .table-cell, .table-column, .activity-time {
+    -fx-font-family: "JetBrains Mono";
+}
+
+.mono-muted {
+    -fx-font-size: 11px;
+}
+
+.mono-text {
+    -fx-font-size: 12px;
+}
+
+.identity-shell {
+    -fx-background-color: -kt-bg;
+}
+
+.sidebar {
+    -fx-background-color: -kt-surface-1;
+    -fx-border-color: transparent -kt-hairline transparent transparent;
+    -fx-border-width: 0 1 0 0;
+    -fx-padding: 24 12 20 12;
+    -fx-pref-width: 214px;
+    -fx-min-width: 214px;
+}
+
+.brand-lockup {
+    -fx-padding: 4 9 25 10;
+}
+
+.brand-name {
+    -fx-font-family: "Syne";
+    -fx-font-size: 15px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -kt-text;
+}
+
+.brand-subtitle {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 9px;
+    -fx-text-fill: -kt-muted;
+}
+
+.sidebar-nav {
+    -fx-spacing: 6px;
+}
+
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 12px;
+    -fx-border-color: transparent;
+    -fx-border-radius: 12px;
+    -fx-padding: 11 12;
+    -fx-alignment: center-left;
+    -fx-text-fill: -kt-muted;
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
+}
+
+.nav-button:hover {
+    -fx-background-color: -kt-surface-2;
+    -fx-text-fill: -kt-text;
+}
+
+.nav-button.active {
+    -fx-background-color: rgba(0, 240, 255, 0.1);
+    -fx-text-fill: -kt-accent;
+}
+
+.nav-index {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 10px;
+    -fx-text-fill: -kt-muted;
+}
+
+.nav-icon {
+    -fx-fill: -kt-muted;
+    -fx-stroke: -kt-muted;
+    -fx-stroke-width: 1.4px;
+    -fx-scale-x: 0.72;
+    -fx-scale-y: 0.72;
+}
+
+.nav-button.active .nav-icon {
+    -fx-fill: -kt-accent;
+    -fx-stroke: -kt-accent;
+}
+
+.nav-active-indicator {
+    -fx-background-color: -kt-accent;
+    -fx-background-radius: 2px;
+    -fx-effect: dropshadow(gaussian, -kt-accent, 9, 0.35, 0, 0);
+    -fx-pref-width: 3px;
+    -fx-min-width: 3px;
+}
+
+.sidebar-footer {
+    -fx-padding: 12 10 0 10;
+    -fx-border-color: -kt-hairline transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.topbar {
+    -fx-background-color: -kt-bg;
+    -fx-border-color: transparent transparent -kt-hairline transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 14 26;
+    -fx-alignment: center-left;
+    -fx-spacing: 12px;
+}
+
+.topbar-context {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 10px;
+    -fx-text-fill: -kt-muted;
+}
+
+.topbar-user {
+    -fx-font-family: "Syne";
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -kt-text;
+}
+
+.content-area {
+    -fx-padding: 28px;
+}
+
+.status-chip {
+    -fx-background-color: -kt-surface-2;
+    -fx-background-radius: 999px;
+    -fx-padding: 5 10;
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 9px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -kt-muted;
+}
+
+.status-chip:success {
+    -fx-background-color: rgba(0, 230, 118, 0.11);
+    -fx-text-fill: -kt-success;
+}
+
+.status-chip:warning {
+    -fx-background-color: rgba(255, 234, 0, 0.11);
+    -fx-text-fill: -kt-warning;
+}
+
+.status-chip:critical {
+    -fx-background-color: rgba(255, 23, 68, 0.12);
+    -fx-text-fill: -kt-critical;
+}
+
+.status-chip:offline {
+    -fx-background-color: rgba(69, 90, 100, 0.25);
+    -fx-text-fill: -kt-offline;
+}
+
+.metric-grid {
+    -fx-hgap: 14px;
+    -fx-vgap: 14px;
+}
+
+.metric-card {
+    -fx-background-color: -kt-surface-1;
+    -fx-background-radius: 18px;
+    -fx-border-color: rgba(126, 141, 164, 0.22);
+    -fx-border-radius: 18px;
+    -fx-border-width: 1px;
+    -fx-min-width: 160px;
+}
+
+.metric-card:success {
+    -fx-border-color: rgba(0, 240, 255, 0.24);
+}
+
+.metric-card:warning {
+    -fx-effect: dropshadow(gaussian, -kt-warning, 12, 0.16, 0, 0);
+}
+
+.metric-card:critical {
+    -fx-effect: dropshadow(gaussian, -kt-critical, 15, 0.22, 0, 0);
+}
+
+.metric-card:offline {
+    -fx-opacity: 0.68;
+}
+
+.metric-card:offline .metric-value,
+.metric-card:offline .metric-unit {
+    -fx-text-fill: -kt-offline;
+}
+
+.metric-label {
+    -fx-font-family: "Syne";
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -kt-muted;
+}
+
+.metric-value {
+    -fx-font-size: 28px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -kt-text;
+}
+
+.metric-unit {
+    -fx-font-size: 10px;
+    -fx-text-fill: -kt-muted;
+}
+
+.panel, .surface-card {
+    -fx-background-color: -kt-surface-1;
+    -fx-background-radius: 18px;
+    -fx-border-color: rgba(126, 141, 164, 0.18);
+    -fx-border-radius: 18px;
+    -fx-border-width: 1px;
+    -fx-padding: 18px;
+}
+
+.telemetry-chart {
+    -fx-background-color: -kt-surface-1;
+    -fx-background-radius: 16px;
+}
+
+.chart-line {
+    -fx-fill: transparent;
+    -fx-stroke: -kt-accent;
+    -fx-stroke-width: 2.2px;
+    -fx-effect: dropshadow(gaussian, -kt-accent, 9, 0.28, 0, 0);
+}
+
+.chart-fill {
+    -fx-fill: linear-gradient(to bottom, rgba(0, 240, 255, 0.18), rgba(0, 240, 255, 0.01));
+    -fx-stroke: transparent;
+}
+
+.chart-point {
+    -fx-fill: -kt-text;
+    -fx-effect: dropshadow(gaussian, -kt-accent, 12, 0.7, 0, 0);
+}
+
+.chart-guide {
+    -fx-background-color: rgba(126, 141, 164, 0.13);
+}
+
+.metric-summary, .panel-heading {
+    -fx-font-family: "Syne";
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.machine-row, .alert-row {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -kt-hairline transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 13 10;
+}
+
+.machine-row:hover, .alert-row:hover {
+    -fx-background-color: -kt-surface-2;
+    -fx-background-radius: 10px;
+}
+
+.machine-row.active-row {
+    -fx-background-color: rgba(0, 240, 255, 0.09);
+    -fx-background-radius: 10px;
+}
+
+.data-table {
+    -fx-background-color: -kt-surface-1;
+    -fx-background-radius: 16px;
+    -fx-border-color: rgba(126, 141, 164, 0.2);
+    -fx-border-radius: 16px;
+    -fx-border-width: 1px;
+    -fx-table-cell-border-color: transparent;
+    -fx-padding: 8px;
+}
+
+.data-table .column-header-background {
+    -fx-background-color: -kt-surface-2;
+    -fx-background-radius: 10px 10px 0 0;
+}
+
+.data-table .column-header, .data-table .filler {
+    -fx-background-color: transparent;
+    -fx-size: 38px;
+    -fx-border-color: transparent transparent -kt-hairline transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.data-table .column-header .label {
+    -fx-font-family: "Syne";
+    -fx-font-size: 9px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -kt-muted;
+    -fx-alignment: center-left;
+}
+
+.data-table .table-row-cell {
+    -fx-background-color: transparent;
+    -fx-cell-size: 46px;
+}
+
+.data-table .table-row-cell:odd {
+    -fx-background-color: rgba(24, 31, 46, 0.38);
+}
+
+.data-table .table-row-cell:hover {
+    -fx-background-color: rgba(0, 240, 255, 0.055);
+}
+
+.data-table .table-row-cell:selected {
+    -fx-background-color: rgba(0, 240, 255, 0.12);
+}
+
+.data-table .table-cell {
+    -fx-font-size: 10px;
+    -fx-text-fill: -kt-text;
+    -fx-border-color: transparent;
+    -fx-padding: 0 10;
+}
+
+.data-table .table-cell:critical {
+    -fx-text-fill: -kt-critical;
+}
+
+.data-table .table-cell:warning {
+    -fx-text-fill: -kt-warning;
+}
+
+.data-table .table-cell:success {
+    -fx-text-fill: -kt-success;
+}
+
+.data-table .placeholder .label {
+    -fx-text-fill: -kt-muted;
+}
+
+.primary-button, .button {
+    -fx-background-color: -kt-surface-2;
+    -fx-background-radius: 11px;
+    -fx-border-color: rgba(126, 141, 164, 0.25);
+    -fx-border-radius: 11px;
+    -fx-border-width: 1px;
+    -fx-padding: 10 15;
+    -fx-font-family: "Syne";
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -kt-text;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: derive(-kt-surface-2, 12%);
+    -fx-border-color: rgba(0, 240, 255, 0.45);
+}
+
+.button:pressed {
+    -fx-scale-x: 0.97;
+    -fx-scale-y: 0.97;
+}
+
+.button:disabled {
+    -fx-opacity: 0.5;
+}
+
+.small-button {
+    -fx-padding: 7 9;
+    -fx-font-size: 8px;
+}
+
+.primary-button {
+    -fx-background-color: -kt-accent;
+    -fx-border-color: -kt-accent;
+    -fx-text-fill: -kt-bg;
+}
+
+.primary-button:hover {
+    -fx-background-color: derive(-kt-accent, -12%);
+}
+
+.text-field, .password-field, .combo-box-base, .choice-box {
+    -fx-background-color: -kt-surface-2;
+    -fx-background-radius: 10px;
+    -fx-border-color: rgba(126, 141, 164, 0.25);
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 10 12;
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 11px;
+    -fx-text-fill: -kt-text;
+    -fx-prompt-text-fill: -kt-muted;
+}
+
+.text-field:focused, .password-field:focused, .combo-box-base:focused {
+    -fx-border-color: -kt-accent;
+    -fx-effect: dropshadow(gaussian, -kt-accent, 12, 0.18, 0, 0);
+}
+
+.text-input {
+    -fx-highlight-fill: -kt-accent;
+    -fx-highlight-text-fill: -kt-bg;
+}
+
+.check-box, .radio-button, .toggle-button {
+    -fx-text-fill: -kt-muted;
+    -fx-font-family: "Syne";
+    -fx-font-size: 10px;
+}
+
+.toggle-button:selected {
+    -fx-background-color: rgba(0, 240, 255, 0.12);
+    -fx-text-fill: -kt-accent;
+}
+
+.scroll-bar {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .track {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: derive(-kt-muted, -25%);
+    -fx-background-radius: 999px;
+}
+
+.scroll-bar .increment-button, .scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.tooltip {
+    -fx-background-color: -kt-surface-2;
+    -fx-background-radius: 8px;
+    -fx-border-color: -kt-hairline;
+    -fx-border-radius: 8px;
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 10px;
+    -fx-text-fill: -kt-text;
+}
+
+.progress-indicator {
+    -fx-progress-color: -kt-accent;
+}
+
+.progress-bar {
+    -fx-accent: -kt-accent;
+}
+
+.scroll-pane, .scroll-pane .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: -kt-bg;
+}
+
+.tab-pane .tab {
+    -fx-background-color: -kt-surface-1;
+    -fx-background-radius: 10px 10px 0 0;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: -kt-surface-2;
+}
+
+.tab-pane .tab-label {
+    -fx-font-family: "Syne";
+    -fx-text-fill: -kt-text;
+}
+
+.context-menu, .menu-item, .menu-bar, .menu {
+    -fx-background-color: -kt-surface-1;
+    -fx-text-fill: -kt-text;
+}
+
+.menu-item:focused, .menu:hover {
+    -fx-background-color: -kt-surface-2;
+}
+
+.dialog-pane {
+    -fx-background-color: -kt-surface-1;
+    -fx-border-color: -kt-hairline;
+    -fx-border-radius: 16px;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: -kt-surface-2;
+}
+
+.dialog-pane .content {
+    -fx-text-fill: -kt-text;
+}
+
+.login-screen {
+    -fx-background-color: radial-gradient(center 50% 45%, radius 70%, -kt-surface-2, -kt-bg);
+}
+
+.login-frame {
+    -fx-background-color: rgba(16, 20, 30, 0.96);
+    -fx-background-radius: 24px;
+    -fx-border-color: rgba(0, 240, 255, 0.24);
+    -fx-border-radius: 24px;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 240, 255, 0.1), 35, 0.16, 0, 8);
+}
+
+.signal-mark {
+    -fx-text-fill: -kt-accent;
+    -fx-effect: dropshadow(gaussian, -kt-accent, 12, 0.45, 0, 0);
+}
+
+.login-field {
+    -fx-padding: 13;
+}
+
+.login-message {
+    -fx-font-size: 11px;
+    -fx-text-fill: -kt-muted;
+}
+
+.error-text {
+    -fx-text-fill: -kt-critical;
+}
+
+.alert-banner {
+    -fx-background-color: -kt-surface-1;
+    -fx-background-radius: 14px;
+    -fx-border-color: -kt-success;
+    -fx-border-radius: 14px;
+    -fx-border-width: 1px;
+    -fx-padding: 14px;
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 11px;
+    -fx-text-fill: -kt-success;
+}
+
+.alert-banner:warning {
+    -fx-border-color: -kt-warning;
+    -fx-text-fill: -kt-warning;
+}
+
+.alert-banner:critical {
+    -fx-border-color: -kt-critical;
+    -fx-text-fill: -kt-critical;
+    -fx-effect: dropshadow(gaussian, -kt-critical, 14, 0.18, 0, 0);
+}
+
+.topology-frame {
+    -fx-background-color: -kt-surface-1;
+    -fx-background-radius: 20px;
+    -fx-border-color: rgba(126, 141, 164, 0.18);
+    -fx-border-radius: 20px;
+    -fx-border-width: 1px;
+    -fx-padding: 12px;
+}
+
+.topology-canvas, .pulse-layer {
+    -fx-background-color: transparent;
+}
+
+.topology-connection {
+    -fx-fill: transparent;
+    -fx-stroke: rgba(126, 141, 164, 0.33);
+    -fx-stroke-width: 1px;
+}
+
+.connection-rest {
+    -fx-stroke: rgba(0, 240, 255, 0.45);
+}
+
+.connection-soap {
+    -fx-stroke: rgba(0, 230, 118, 0.38);
+}
+
+.connection-grpc {
+    -fx-stroke: rgba(255, 234, 0, 0.32);
+}
+
+.topology-node {
+    -fx-background-color: -kt-surface-2;
+    -fx-background-radius: 14px;
+    -fx-border-color: rgba(126, 141, 164, 0.28);
+    -fx-border-radius: 14px;
+    -fx-border-width: 1px;
+    -fx-pref-width: 175px;
+    -fx-min-width: 175px;
+    -fx-max-width: 175px;
+    -fx-min-height: 108px;
+    -fx-max-height: 108px;
+}
+
+.topology-index {
+    -fx-font-size: 8px;
+    -fx-text-fill: -kt-muted;
+}
+
+.topology-title {
+    -fx-font-family: "Syne";
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+
+.topology-protocol {
+    -fx-font-size: 8px;
+    -fx-text-fill: -kt-accent;
+}
+
+.protocol-soap {
+    -fx-text-fill: -kt-success;
+}
+
+.protocol-grpc {
+    -fx-text-fill: -kt-warning;
+}
+
+.topology-detail {
+    -fx-font-size: 8px;
+    -fx-text-fill: -kt-muted;
+}
+
+.pulse-rest {
+    -fx-fill: -kt-accent;
+    -fx-effect: dropshadow(gaussian, -kt-accent, 12, 0.65, 0, 0);
+}
+
+.pulse-soap {
+    -fx-fill: -kt-success;
+    -fx-effect: dropshadow(gaussian, -kt-success, 10, 0.6, 0, 0);
+}
+
+.pulse-grpc {
+    -fx-fill: -kt-warning;
+    -fx-stroke: -kt-text;
+    -fx-stroke-width: 1px;
+    -fx-effect: dropshadow(gaussian, -kt-warning, 10, 0.6, 0, 0);
+}
+
+.pulse-failed {
+    -fx-fill: -kt-critical;
+    -fx-effect: dropshadow(gaussian, -kt-critical, 15, 0.7, 0, 0);
+}
+
+.reduce-motion .pulse-layer {
+    -fx-opacity: 0;
+}
+
+.command-palette {
+    -fx-background-color: -kt-surface-1;
+    -fx-background-radius: 18px;
+    -fx-border-color: -kt-hairline;
+    -fx-border-radius: 18px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 28, 0.25, 0, 12);
+}
+
+.palette-backdrop {
+    -fx-background-color: rgba(8, 10, 15, 0.76);
+}
+
+.palette-item {
+    -fx-background-radius: 10px;
+    -fx-padding: 10px;
+}
+
+.palette-item:hover {
+    -fx-background-color: -kt-surface-2;
+}
+
+.hairline {
+    -fx-background-color: -kt-hairline;
+}
