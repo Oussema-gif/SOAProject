@@ -110,6 +110,7 @@
                     <mainClass>com.soa.desktop.app.MainApp</mainClass>
                     <options>
                         <option>-Dfile.encoding=UTF-8</option>
+                        <option>-Dkt.demo=${env.KT_DEMO}</option>
                     </options>
                 </configuration>
             </plugin>
