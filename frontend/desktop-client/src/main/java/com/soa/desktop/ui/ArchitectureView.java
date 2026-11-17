@@ -9,6 +9,9 @@ import com.soa.desktop.ui.motion.Motion;
 import com.soa.desktop.ui.topology.PulseLayer;
 import com.soa.desktop.ui.topology.TrafficEventBus;
 import com.soa.desktop.util.ActivityLogger;
+import com.soa.telemetry.TelemetryReading;
+import com.soa.telemetry.anomaly.Severity;
+import com.soa.telemetry.anomaly.Thresholds;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -22,20 +25,29 @@ import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.util.Duration;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class ArchitectureView extends VBox implements AutoCloseable {
+
+    private static final double NODE_HEIGHT = 140;
+    private static final double SERVICE_GAP = 20;
+
+    private record Connection(Path path, TopologyNode from, TopologyNode to,
+                              boolean fromRight, boolean toRight, boolean visible) { }
 
     private final boolean demo;
     private final MaintenanceRestClient rest;
     private final InventorySoapClient soap;
     private final Pane routePane = new Pane();
     private final PulseLayer pulseLayer = new PulseLayer();
+    private final List<Connection> connections = new ArrayList<>();
     private final Map<String, Path> outboundRoutes = new HashMap<>();
     private final Map<String, Path> inboundRoutes = new HashMap<>();
     private final Map<String, TopologyNode> nodes = new HashMap<>();
@@ -65,8 +77,10 @@ public final class ArchitectureView extends VBox implements AutoCloseable {
         heading.getChildren().addAll(eyebrow, title, detail);
 
         routePane.getStyleClass().add("topology-canvas");
-        routePane.setMinHeight(470);
-        routePane.setPrefHeight(500);
+        routePane.setMinWidth(480);
+        routePane.setPrefWidth(780);
+        routePane.setMinHeight(500);
+        routePane.setPrefHeight(520);
         StackPane layers = new StackPane(routePane, pulseLayer);
         layers.getStyleClass().add("topology-frame");
         VBox.setVgrow(layers, javafx.scene.layout.Priority.ALWAYS);
@@ -87,19 +101,7 @@ public final class ArchitectureView extends VBox implements AutoCloseable {
         details.getChildren().addAll(detailsHeading, serviceDetails);
         getChildren().addAll(heading, layers, details, legend);
         buildTopology();
-        subscription = TrafficEventBus.subscribe(event -> Platform.runLater(() -> {
-            Path route = "RESPONSE".equalsIgnoreCase(event.direction())
-                    ? inboundRoutes.get(event.protocol().toUpperCase())
-                    : outboundRoutes.get(event.protocol().toUpperCase());
-            if (route != null) pulseLayer.pulse(route, event.protocol(), event.status());
-            String protocol = event.protocol().equalsIgnoreCase("grpc")
-                    ? "GRPC" : event.protocol().toUpperCase();
-            TopologyNode node = nodes.get(protocol);
-            if (!demo && node != null && "RESPONSE".equalsIgnoreCase(event.direction())) {
-                if ("SUCCESS".equalsIgnoreCase(event.status())) node.setHealth("success", "LIVE");
-                if ("FAILED".equalsIgnoreCase(event.status())) node.setHealth("offline", "DOWN");
-            }
-        }));
+        subscription = TrafficEventBus.subscribe(event -> Platform.runLater(() -> handleTrafficEvent(event)));
 
         if (demo) {
             demoTraffic = new Timeline(new KeyFrame(Duration.millis(520), event -> {
@@ -116,21 +118,6 @@ public final class ArchitectureView extends VBox implements AutoCloseable {
     }
 
     private void buildTopology() {
-        Path rest = connect(185, 225, 260, 100, "connection-rest");
-        Path soap = connect(185, 255, 260, 355, "connection-soap");
-        Path grpc = connect(185, 240, 500, 240, "connection-grpc");
-        Path maintenanceDb = connect(430, 100, 780, 220, "connection-storage");
-        Path inventoryDb = connect(430, 355, 780, 260, "connection-storage");
-        Path telemetryDb = connect(670, 240, 780, 240, "connection-storage");
-
-        outboundRoutes.put("REST", rest);
-        outboundRoutes.put("SOAP", soap);
-        outboundRoutes.put("GRPC", grpc);
-        inboundRoutes.put("REST", reverse(185, 225, 260, 100));
-        inboundRoutes.put("SOAP", reverse(185, 255, 260, 355));
-        inboundRoutes.put("GRPC", reverse(185, 240, 500, 240));
-
-        routePane.getChildren().addAll(rest, soap, grpc, maintenanceDb, inventoryDb, telemetryDb);
         TopologyNode desktop = new TopologyNode("NODE 01", "JavaFX Desktop", "CLIENT", "Operator console");
         TopologyNode maintenance = new TopologyNode("NODE 02", "Maintenance", "REST", "JWT · :8081");
         TopologyNode inventory = new TopologyNode("NODE 03", "Inventory", "SOAP", "API key · :8082");
@@ -142,47 +129,111 @@ public final class ArchitectureView extends VBox implements AutoCloseable {
         nodes.put("DATABASE", database);
         nodes.put("CLIENT", desktop);
         desktop.setHealth("success", "LOCAL");
-        database.setHealth("warning", "NOT PROBED");
-        maintenance.setHealth("offline", demo ? "SIMULATED" : "CHECKING");
-        inventory.setHealth("offline", demo ? "SIMULATED" : "CHECKING");
-        telemetry.setHealth("offline", demo ? "SIMULATED" : "CHECKING");
+        database.setHealth("warning", "INDIRECT");
+        maintenance.setHealth(demo ? "warning" : "loading", demo ? "SIMULATED" : "CHECKING");
+        inventory.setHealth(demo ? "warning" : "loading", demo ? "SIMULATED" : "CHECKING");
+        telemetry.setHealth(demo ? "warning" : "loading", demo ? "SIMULATED" : "CHECKING");
         for (TopologyNode node : nodes.values()) {
             node.setOnMouseClicked(event -> showServiceDetails(node));
         }
-        routePane.getChildren().addAll(desktop, maintenance, inventory, telemetry, database);
 
-        double[] x = {18, 245, 245, 485, 740};
-        double[] y = {190, 60, 310, 190, 190};
-        desktop.relocate(x[0], y[0]);
-        maintenance.relocate(x[1], y[1]);
-        inventory.relocate(x[2], y[2]);
-        telemetry.relocate(x[3], y[3]);
-        database.relocate(x[4], y[4]);
-        routePane.widthProperty().addListener((obs, oldWidth, newWidth) -> {
-            double extra = Math.max(0, (newWidth.doubleValue() - 980) / 2);
-            desktop.setLayoutX(x[0] + extra);
-            maintenance.setLayoutX(x[1] + extra);
-            inventory.setLayoutX(x[2] + extra);
-            telemetry.setLayoutX(x[3] + extra);
-            database.setLayoutX(x[4] + extra);
-        });
+        outboundRoutes.put("REST", connect(desktop, maintenance, true, false, "connection-rest", true));
+        outboundRoutes.put("SOAP", connect(desktop, inventory, true, false, "connection-soap", true));
+        outboundRoutes.put("GRPC", connect(desktop, telemetry, true, false, "connection-grpc", true));
+        inboundRoutes.put("REST", connect(maintenance, desktop, false, true, "connection-rest", false));
+        inboundRoutes.put("SOAP", connect(inventory, desktop, false, true, "connection-soap", false));
+        inboundRoutes.put("GRPC", connect(telemetry, desktop, false, true, "connection-grpc", false));
+        connect(maintenance, database, true, false, "connection-storage", true);
+        connect(inventory, database, true, false, "connection-storage", true);
+        connect(telemetry, database, true, false, "connection-storage", true);
+
+        routePane.getChildren().addAll(outboundRoutes.values());
+        connections.stream().filter(Connection::visible).map(Connection::path)
+                .filter(path -> !routePane.getChildren().contains(path))
+                .forEach(routePane.getChildren()::add);
+        routePane.getChildren().addAll(desktop, maintenance, inventory, telemetry, database);
+        routePane.widthProperty().addListener((obs, oldWidth, newWidth) -> layoutTopology());
+        routePane.heightProperty().addListener((obs, oldHeight, newHeight) -> layoutTopology());
+        layoutTopology();
         Motion.stagger(routePane.getChildren());
     }
 
-    private Path connect(double startX, double startY, double endX, double endY, String styleClass) {
-        Path path = new Path(new MoveTo(startX, startY),
-                new CubicCurveTo(startX + 55, startY, endX - 55, endY, endX, endY));
+    private Path connect(TopologyNode from, TopologyNode to, boolean fromRight, boolean toRight,
+                         String styleClass, boolean visible) {
+        Path path = new Path();
         path.getStyleClass().addAll("topology-connection", styleClass);
         path.setCache(true);
         path.setCacheHint(javafx.scene.CacheHint.SPEED);
+        connections.add(new Connection(path, from, to, fromRight, toRight, visible));
         return path;
     }
 
-    private Path reverse(double startX, double startY, double endX, double endY) {
-        Path path = new Path(new MoveTo(endX, endY),
-                new CubicCurveTo(endX - 55, endY, startX + 55, startY, startX, startY));
-        path.getStyleClass().add("topology-connection");
-        return path;
+    private void layoutTopology() {
+        double width = routePane.getWidth();
+        if (width <= 0) return;
+
+        double nodeWidth = Math.min(190, Math.max(140, (width - 48) / 3));
+        double left = 12;
+        double middle = (width - nodeWidth) / 2;
+        double right = width - nodeWidth - 12;
+        double serviceHeight = NODE_HEIGHT * 3 + SERVICE_GAP * 2;
+        double top = Math.max(12, (routePane.getHeight() - serviceHeight) / 2);
+        double middleY = top + NODE_HEIGHT + SERVICE_GAP;
+
+        nodes.get("CLIENT").resizeRelocate(left, middleY, nodeWidth, NODE_HEIGHT);
+        nodes.get("REST").resizeRelocate(middle, top, nodeWidth, NODE_HEIGHT);
+        nodes.get("SOAP").resizeRelocate(middle, middleY, nodeWidth, NODE_HEIGHT);
+        nodes.get("GRPC").resizeRelocate(middle, top + (NODE_HEIGHT + SERVICE_GAP) * 2,
+                nodeWidth, NODE_HEIGHT);
+        nodes.get("DATABASE").resizeRelocate(right, middleY, nodeWidth, NODE_HEIGHT);
+
+        for (Connection connection : connections) {
+            double startX = connection.from().getLayoutX()
+                    + (connection.fromRight() ? connection.from().getWidth() : 0);
+            double startY = connection.from().getLayoutY() + connection.from().getHeight() / 2;
+            double endX = connection.to().getLayoutX()
+                    + (connection.toRight() ? connection.to().getWidth() : 0);
+            double endY = connection.to().getLayoutY() + connection.to().getHeight() / 2;
+            double bend = Math.max(24, Math.abs(endX - startX) * 0.45);
+            double direction = endX >= startX ? 1 : -1;
+            connection.path().getElements().setAll(
+                    new MoveTo(startX, startY),
+                    new CubicCurveTo(startX + direction * bend, startY,
+                            endX - direction * bend, endY, endX, endY));
+        }
+    }
+
+    private void handleTrafficEvent(TrafficEventBus.TrafficEvent event) {
+        if (closed || event == null || event.protocol() == null || event.direction() == null) return;
+        String protocol = event.protocol().toUpperCase(Locale.ROOT);
+        TopologyNode node = nodes.get(protocol);
+        String direction = event.direction().toUpperCase(Locale.ROOT);
+        String status = event.status() == null ? "" : event.status().toUpperCase(Locale.ROOT);
+
+        if ("STATE".equals(direction)) {
+            switch (status) {
+                case "NORMAL", "SUCCESS" -> {
+                    if (node != null) node.setHealth("success", "NORMAL · LIVE");
+                }
+                case "WARNING" -> {
+                    if (node != null) node.setHealth("warning", "ALERT · WARNING");
+                }
+                case "CRITICAL" -> {
+                    if (node != null) node.setHealth("critical", "ALERT · CRITICAL");
+                }
+                default -> { }
+            }
+            return;
+        }
+
+        Path route = "RESPONSE".equals(direction) ? inboundRoutes.get(protocol) : outboundRoutes.get(protocol);
+        if (route != null) pulseLayer.pulse(route, event.protocol(), status);
+        if ("REQUEST".equals(direction) && "PENDING".equals(status) && node != null) {
+            node.setHealth("loading", "IN FLIGHT");
+        } else if ("RESPONSE".equals(direction) && node != null) {
+            if ("SUCCESS".equals(status)) node.setHealth("success", "CONNECTED");
+            if ("FAILED".equals(status)) node.setHealth("offline", "DISCONNECTED");
+        }
     }
 
     private void probeServices() {
@@ -215,32 +266,39 @@ public final class ArchitectureView extends VBox implements AutoCloseable {
     private void probeGrpc(MachineDto machine) {
         grpcProbe = new GrpcTelemetryClient("localhost", 9090);
         long startedAt = System.nanoTime();
-        AtomicReference<GrpcTelemetryClient.Cancellable> streamRef = new AtomicReference<>();
+        AtomicBoolean firstReading = new AtomicBoolean();
         grpcTimeout = new Timeline(new KeyFrame(Duration.seconds(5), event -> {
-            if (streamRef.get() != null) streamRef.get().cancel();
+            if (grpcProbeStream != null) grpcProbeStream.cancel();
             if (grpcProbe != null) grpcProbe.close();
             grpcProbe = null;
+            grpcProbeStream = null;
             if (!closed) nodes.get("GRPC").setHealth("offline", "NO RESPONSE · 5s");
         }));
         grpcTimeout.play();
-        grpcProbeStream = grpcProbe.stream(machine.id(), reading -> Platform.runLater(() -> {
+        grpcProbeStream = grpcProbe.stream(machine.id(), (TelemetryReading reading) -> Platform.runLater(() -> {
             if (closed) return;
-            grpcTimeout.stop();
+            if (firstReading.compareAndSet(false, true)) {
+                grpcTimeout.stop();
+                long firstResponseMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+                ActivityLogger.log("gRPC", "StreamMachineTelemetry", "SUCCESS",
+                        "First reading received for " + machine.id(), null, null, firstResponseMillis);
+            }
             long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
-            nodes.get("GRPC").setHealth("success", "LIVE · " + elapsedMillis + " ms");
-            ActivityLogger.log("gRPC", "StreamMachineTelemetry", "SUCCESS",
-                    "First reading received for " + machine.id(), null, null, elapsedMillis);
-            if (streamRef.get() != null) streamRef.get().cancel();
-            if (grpcProbe != null) grpcProbe.close();
-            grpcProbe = null;
+            Severity severity = Thresholds.defaults().classifyAll(
+                    reading.getTemperatureC(), reading.getVibrationMmS(),
+                    reading.getPressureBar(), reading.getEnergyKw());
+            String status = severity == Severity.NORMAL
+                    ? "LIVE · " + elapsedMillis + " ms"
+                    : "ALERT · " + severity + " · LIVE · " + elapsedMillis + " ms";
+            nodes.get("GRPC").setHealth(severity.name().toLowerCase(Locale.ROOT), status);
         }), error -> Platform.runLater(() -> {
             if (closed) return;
             grpcTimeout.stop();
             nodes.get("GRPC").setHealth("offline", "DOWN");
             if (grpcProbe != null) grpcProbe.close();
             grpcProbe = null;
+            grpcProbeStream = null;
         }));
-        streamRef.set(grpcProbeStream);
     }
 
     private void showServiceDetails(TopologyNode node) {
@@ -261,11 +319,8 @@ public final class ArchitectureView extends VBox implements AutoCloseable {
                 .limit(3)
                 .map(entry -> entry.time() + " · " + entry.operation() + " · " + entry.status())
                 .reduce((first, second) -> first + "\n" + second).orElse("No protocol events captured.");
-        String title = node.getChildren().size() > 1
-                ? ((Label) node.getChildren().get(1)).getText() : "Service";
-        String status = node.getChildren().size() > 4
-                ? ((Label) node.getChildren().get(4)).getText() : "Unknown";
-        serviceDetails.setText(title + " · " + status + "\nENDPOINT  " + endpoint + "\nRECENT  " + recent);
+        serviceDetails.setText(node.getTitle() + " · " + node.getHealthText()
+                + "\nENDPOINT  " + endpoint + "\nRECENT  " + recent);
     }
 
     @Override

@@ -340,6 +340,7 @@ public final class MonitoringView extends VBox {
                     reading.getPressureBar(), reading.getEnergyKw());
             statusPill.setText(severity == Severity.NORMAL ? "RUNNING" : severity.name());
             statusPill.setState(severity == Severity.NORMAL ? "success" : severity.name().toLowerCase());
+            TrafficEventBus.publish("gRPC", "STATE", severity.name());
         });
     }
 
@@ -520,6 +521,7 @@ public final class MonitoringView extends VBox {
             Severity severity = Thresholds.defaults().classifyAll(current[0], current[1], current[2], current[3]);
             statusPill.setText(severity == Severity.NORMAL ? "RUNNING" : severity.name());
             statusPill.setState(severity == Severity.NORMAL ? "success" : severity.name().toLowerCase());
+            TrafficEventBus.publish("gRPC", "STATE", severity.name());
             if (++demoTick % 18 == 0 && severity != Severity.NORMAL) {
                 alertBanner.setText("DEMO ANOMALY · " + severity + " · " + activeMachineId);
                 alertBanner.pseudoClassStateChanged(CRITICAL, severity == Severity.CRITICAL);

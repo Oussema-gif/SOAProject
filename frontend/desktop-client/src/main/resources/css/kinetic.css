@@ -231,6 +231,11 @@
     -fx-text-fill: -kt-offline;
 }
 
+.status-chip:loading {
+    -fx-background-color: rgba(0, 229, 242, 0.12);
+    -fx-text-fill: -kt-accent;
+}
+
 .metric-grid {
     -fx-hgap: 14px;
     -fx-vgap: 14px;
@@ -695,11 +700,33 @@
     -fx-border-color: rgba(126, 141, 164, 0.28);
     -fx-border-radius: 14px;
     -fx-border-width: 1px;
-    -fx-pref-width: 190px;
-    -fx-min-width: 190px;
-    -fx-max-width: 190px;
-    -fx-min-height: 132px;
-    -fx-max-height: 132px;
+    -fx-cursor: hand;
+}
+
+.topology-node:hover, .topology-node:focused {
+    -fx-border-color: rgba(0, 229, 242, 0.7);
+    -fx-effect: dropshadow(gaussian, -kt-accent, 10, 0.13, 0, 0);
+}
+
+.topology-node:success {
+    -fx-border-color: rgba(0, 214, 143, 0.48);
+}
+
+.topology-node:warning, .topology-node:loading {
+    -fx-border-color: rgba(255, 181, 71, 0.62);
+}
+
+.topology-node:loading {
+    -fx-border-color: rgba(0, 229, 242, 0.62);
+}
+
+.topology-node:critical {
+    -fx-border-color: -kt-critical;
+    -fx-effect: dropshadow(gaussian, -kt-critical, 12, 0.2, 0, 0);
+}
+
+.topology-node:offline {
+    -fx-border-color: rgba(89, 105, 125, 0.58);
 }
 
 .topology-index {

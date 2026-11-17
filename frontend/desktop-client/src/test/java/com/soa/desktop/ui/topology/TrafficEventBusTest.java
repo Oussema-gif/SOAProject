@@ -30,6 +30,26 @@ class TrafficEventBusTest {
     }
 
     @Test
+    void publishesLiveTelemetryStateUpdates() {
+        AtomicReference<TrafficEventBus.TrafficEvent> received = new AtomicReference<>();
+        AutoCloseable subscription = TrafficEventBus.subscribe(received::set);
+        try {
+            TrafficEventBus.publish("gRPC", "STATE", "CRITICAL");
+
+            assertNotNull(received.get());
+            assertEquals("gRPC", received.get().protocol());
+            assertEquals("STATE", received.get().direction());
+            assertEquals("CRITICAL", received.get().status());
+        } finally {
+            try {
+                subscription.close();
+            } catch (Exception exception) {
+                throw new AssertionError(exception);
+            }
+        }
+    }
+
+    @Test
     void listenerFailureDoesNotChangeClientCallBehavior() {
         AutoCloseable subscription = TrafficEventBus.subscribe(event -> {
             throw new IllegalStateException("observer failure");
