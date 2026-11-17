@@ -29,7 +29,7 @@ public class InventorySoapClient {
             var bindingProvider = (jakarta.xml.ws.BindingProvider) port;
             var binding = bindingProvider.getBinding();
             List<jakarta.xml.ws.handler.Handler> handlerChain = new ArrayList<>();
-            handlerChain.add(new ApiKeyHandler("96dc2f3b58041ea7"));
+            handlerChain.add(new ApiKeyHandler(System.getenv().getOrDefault("INVENTORY_API_KEY", "96dc2f3b58041ea7")));
             binding.setHandlerChain(handlerChain);
 
         } catch (Exception e) {
