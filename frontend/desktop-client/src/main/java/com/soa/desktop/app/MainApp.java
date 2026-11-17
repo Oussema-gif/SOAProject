@@ -46,7 +46,16 @@ public class MainApp extends Application {
 
         CompletableFuture.runAsync(() -> {
             try {
-                rest.login("admin", "epXNCuqnIAZ5z19bmU7H2gKt");
+                String username = System.getenv().getOrDefault("ADMIN_USERNAME", "admin");
+                String password = System.getenv("ADMIN_PASSWORD");
+
+                if (password == null || password.isBlank()) {
+                    throw new IllegalStateException(
+                            "ADMIN_PASSWORD environment variable is missing"
+                    );
+                }
+
+                rest.login(username, password);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
